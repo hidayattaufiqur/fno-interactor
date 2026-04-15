@@ -86,6 +86,7 @@ export function getSchemaEdgesForTable(tableName, knownTables, limit = 24) {
 
   // Outgoing: tableName is the child → it has FK fields pointing to parents
   for (const [parentTable, parentField, childField] of reverseMap[tableName] ?? []) {
+    if (parentTable === tableName) continue // skip self-references
     if (knownTables && !knownTables.has(parentTable)) continue
     edges.push({
       from: tableName,
@@ -98,6 +99,7 @@ export function getSchemaEdgesForTable(tableName, knownTables, limit = 24) {
 
   // Incoming: tableName is the parent → other tables have FK fields pointing to it
   for (const [childTable, parentField, childField] of forwardMap[tableName] ?? []) {
+    if (childTable === tableName) continue // skip self-references
     if (knownTables && !knownTables.has(childTable)) continue
     edges.push({
       from: childTable,
@@ -125,6 +127,7 @@ export function getFkEdgesBetween(tables) {
   const edges = []
   for (const tableName of tables) {
     for (const [parentTable, parentField, childField] of reverseMap[tableName] ?? []) {
+      if (parentTable === tableName) continue // skip self-references
       if (tableSet.has(parentTable)) {
         edges.push({
           from: tableName,

@@ -32,11 +32,13 @@
     [...new Set(relations.flatMap((rel) => [rel.from, rel.to]).filter((t) => t !== tableName))]
   )
 
-  // Deduplicate edges by (from, to) pair — merge fields from duplicates
+  // Deduplicate edges by (from, to) pair — merge fields from duplicates.
+  // Self-referencing edges (from === to) are excluded; they can't be drawn meaningfully.
   let edges = $derived.by(() => {
     /** @type {Map<string, Relation & { fields: string[] }>} */
     const edgeMap = new Map()
     for (const rel of relations) {
+      if (rel.from === rel.to) continue // skip self-references
       const key = `${rel.from}|${rel.to}`
       if (!edgeMap.has(key)) {
         edgeMap.set(key, { ...rel, fields: [...(rel.fields ?? [])] })
@@ -84,14 +86,15 @@
   }
 
   /** Returns the border point of node `name` in the direction of node `toward`,
-   *  with a 5-px gap so arrowheads don't overlap the node border.
+   *  with a gap so arrowheads clear the node border visually.
    * @param {string} name @param {string} toward @returns {Point} */
   function nodeBorderPoint(name, toward) {
     const from = nodeCenter(name)
     const to   = nodeCenter(toward)
     const isCenter = name === tableName
-    const halfW = (isCenter ? CENTER_NODE_W : SATELLITE_NODE_W) / 2 + 5
-    const halfH = (isCenter ? CENTER_NODE_H : SATELLITE_NODE_H) / 2 + 5
+    // 12px gap: arrowheads are ~5px deep; extra margin prevents visual overlap
+    const halfW = (isCenter ? CENTER_NODE_W : SATELLITE_NODE_W) / 2 + 12
+    const halfH = (isCenter ? CENTER_NODE_H : SATELLITE_NODE_H) / 2 + 12
     const dx = to.x - from.x
     const dy = to.y - from.y
     const absDx = Math.abs(dx)
@@ -202,17 +205,19 @@
         {@const mx = (p1.x + p2.x) / 2}
         {@const my = (p1.y + p2.y) / 2}
         {@const label = hoveredEdge.fields[0]}
-        {@const labelWidth = Math.min(200, label.length * 7.2 + 18)}
+        {@const labelWidth = label.length * 7.5 + 20}
+        {@const padding = 8}
+        {@const rx = Math.max(padding, Math.min(canvasWidth - labelWidth - padding, mx - labelWidth / 2))}
         <rect
-          x={mx - labelWidth / 2} y={my - 12}
-          width={labelWidth} height={20} rx="4"
-          fill="rgba(8,14,26,0.93)" stroke="rgba(138,213,255,0.2)" stroke-width="1"
+          x={rx} y={my - 13}
+          width={labelWidth} height={22} rx="4"
+          fill="rgba(8,14,26,0.95)" stroke="rgba(138,213,255,0.25)" stroke-width="1"
           pointer-events="none"
         />
         <text
-          x={mx} y={my + 4}
+          x={rx + labelWidth / 2} y={my + 5}
           text-anchor="middle"
-          fill="rgba(232,241,255,0.85)"
+          fill="rgba(232,241,255,0.9)"
           font-size="10.5"
           font-family="'Cascadia Code', 'Fira Code', monospace"
           pointer-events="none">{label}</text>

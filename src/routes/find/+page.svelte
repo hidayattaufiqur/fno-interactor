@@ -302,28 +302,41 @@
           {@const hops = result.steps.length - 1}
           <li class="path-item">
             <span class="path-index">#{i + 1}</span>
-            <span class="hop-badge">{hops} hop{hops !== 1 ? 's' : ''}</span>
-            <div class="path-chain">
-              {#each result.steps as step, stepIndex}
-                <span class="path-node">
-                  <a href="/tables/{step.table}" class="path-table-link"
-                    class:path-source={stepIndex === 0}
-                    class:path-target={stepIndex === result.steps.length - 1}
-                  >{step.table}</a>
-                  {#if tableDefs[step.table]}
-                    <span class="path-mod" data-module={canonicalModule(tableDefs[step.table].module)}
-                      title={tableDefs[step.table].description}>
-                      {canonicalModule(tableDefs[step.table].module)}
-                    </span>
-                  {/if}
-                </span>
-                {#if stepIndex < result.steps.length - 1}
-                  <span class="path-edge" title={result.steps[stepIndex + 1].via}>
+            <div class="path-body">
+              <!-- Row 1: clean horizontal chain of table nodes -->
+              <div class="path-chain">
+                <span class="hop-badge">{hops} hop{hops !== 1 ? 's' : ''}</span>
+                {#each result.steps as step, stepIndex}
+                  {#if stepIndex > 0}
                     <span class="path-arrow">→</span>
-                    <span class="path-field">{result.steps[stepIndex + 1].via}</span>
+                  {/if}
+                  <span class="path-node">
+                    <a href="/tables/{step.table}" class="path-table-link"
+                      class:path-source={stepIndex === 0}
+                      class:path-target={stepIndex === result.steps.length - 1}
+                    >{step.table}</a>
+                    {#if tableDefs[step.table]}
+                      <span class="path-mod" data-module={canonicalModule(tableDefs[step.table].module)}
+                        title={tableDefs[step.table].description}>
+                        {canonicalModule(tableDefs[step.table].module)}
+                      </span>
+                    {/if}
                   </span>
-                {/if}
-              {/each}
+                {/each}
+              </div>
+              <!-- Row 2: FK field labels, one per hop -->
+              {#if result.steps.some((s) => s.via)}
+                <div class="path-fk-list">
+                  {#each result.steps.slice(1) as step, hopIndex}
+                    {#if step.via}
+                      <span class="path-fk-label">
+                        <span class="path-fk-hop">hop {hopIndex + 1}</span>
+                        <span class="path-fk-field">{step.via}</span>
+                      </span>
+                    {/if}
+                  {/each}
+                </div>
+              {/if}
             </div>
           </li>
         {/each}
@@ -538,11 +551,10 @@
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 9px;
-    padding: 14px 16px;
+    padding: 12px 16px;
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    flex-wrap: wrap;
+    gap: 10px;
   }
 
   .path-index {
@@ -550,7 +562,7 @@
     color: rgba(232, 241, 255, 0.3);
     min-width: 28px;
     flex-shrink: 0;
-    padding-top: 2px;
+    padding-top: 3px;
   }
 
   .hop-badge {
@@ -564,18 +576,65 @@
     white-space: nowrap;
   }
 
+  /* Body holds both the chain row and the FK labels row */
+  .path-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  /* Row 1: hop badge + table nodes separated by arrows, wraps as needed */
   .path-chain {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
-    flex: 1;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .path-node {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .path-arrow {
+    color: rgba(232, 241, 255, 0.25);
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+
+  /* Row 2: one FK field label per hop, stacked below the chain */
+  .path-fk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 2px;
+  }
+
+  .path-fk-label {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .path-fk-hop {
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: rgba(232, 241, 255, 0.2);
+    flex-shrink: 0;
+    min-width: 34px;
+  }
+
+  .path-fk-field {
+    font-size: 10px;
+    color: rgba(232, 241, 255, 0.35);
+    font-family: var(--font-mono, monospace);
+    word-break: break-all;
   }
 
   .path-table-link {
@@ -613,27 +672,6 @@
     border-radius: 4px;
     background: var(--mod-clr-bg, rgba(138, 213, 255, 0.1));
     color: var(--mod-clr, #c4e7ff);
-  }
-
-  .path-edge {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1px;
-    padding: 0 4px;
-  }
-
-  .path-arrow {
-    color: rgba(232, 241, 255, 0.2);
-    font-size: 14px;
-  }
-
-  .path-field {
-    font-size: 10px;
-    color: rgba(232, 241, 255, 0.35);
-    font-family: var(--font-mono, monospace);
-    white-space: normal;
-    word-break: break-all;
   }
 
   @media (max-width: 900px) {
