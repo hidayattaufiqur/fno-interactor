@@ -1,17 +1,74 @@
 <script>
-  /** @type {import('./$types').PageData} */
-  export let data
+  import { flows, tableDefs } from '$lib/data/flows'
+  import { canonicalModule } from '$lib/utils'
 
-  let query = ''
+  // Build a lookup: tableName → [{flowId, flowTitle, stageId, stageTitle}]
+  // Done inline (not via +page.js) to avoid Svelte 5 legacy-mode prop issues.
+  const tableUsageIndex = (() => {
+    /** @type {Record<string, {flowId: string, flowTitle: string, stageId: string, stageTitle: string}[]>} */
+    const index = {}
+    for (const flow of flows) {
+      for (const stage of flow.stages) {
+        for (const tableName of stage.tables) {
+          if (!index[tableName]) index[tableName] = []
+          index[tableName].push({ flowId: flow.id, flowTitle: flow.title, stageId: stage.id, stageTitle: stage.title })
+        }
+      }
+    }
+    return index
+  })()
 
-  $: tableNames = Object.keys(data.tableIndex).sort()
+  let searchQuery = ''
+  let moduleFilter = 'All'
 
-  $: results =
-    query.trim().length < 2
+  $: allTableNames = Object.keys(tableUsageIndex).sort()
+
+  // Canonical module names for filter pills (≤8 clean names instead of 54 raw CDM strings)
+  $: moduleOptions = [
+    'All',
+    ...Array.from(
+      new Set(Object.values(tableDefs).map((def) => canonicalModule(def.module)).filter(Boolean))
+    ).sort(),
+  ]
+
+  /**
+   * Returns a label explaining why a table matched the query (or null if matched by name).
+   * @param {string} tableName @param {string} queryLower
+   */
+  function matchReason(tableName, queryLower) {
+    const tableDef = tableDefs[tableName]
+    if (tableName.toLowerCase().includes(queryLower)) return null // name match — no label needed
+    if (tableDef?.description?.toLowerCase().includes(queryLower)) return 'description'
+    if (tableDef?.fields?.some((field) => field.name.toLowerCase().includes(queryLower))) return 'field name'
+    if (tableDef?.fields?.some((field) => field.note.toLowerCase().includes(queryLower))) return 'field note'
+    return null
+  }
+
+  /**
+   * Returns true if the table matches the search query (name, description, field name, or field note).
+   * Single source of truth — used by both the results filter and matchReason.
+   * @param {string} tableName @param {string} queryLower
+   */
+  function tableMatchesQuery(tableName, queryLower) {
+    if (tableName.toLowerCase().includes(queryLower)) return true
+    const tableDef = tableDefs[tableName]
+    if (tableDef?.description?.toLowerCase().includes(queryLower)) return true
+    if (tableDef?.fields?.some((field) => field.name.toLowerCase().includes(queryLower))) return true
+    if (tableDef?.fields?.some((field) => field.note.toLowerCase().includes(queryLower))) return true
+    return false
+  }
+
+  $: searchResults =
+    searchQuery.trim().length < 2
       ? []
-      : tableNames.filter((name) => name.toLowerCase().includes(query.trim().toLowerCase()))
+      : allTableNames.filter((name) => tableMatchesQuery(name, searchQuery.trim().toLowerCase()))
 
-  $: browseable = query.trim().length < 2 ? tableNames : []
+  $: allTables = searchQuery.trim().length < 2 ? allTableNames : []
+
+  $: filteredTables =
+    moduleFilter === 'All'
+      ? allTables
+      : allTables.filter((name) => canonicalModule(tableDefs[name]?.module) === moduleFilter)
 </script>
 
 <svelte:head>
@@ -34,25 +91,37 @@
         id="table-search"
         type="text"
         placeholder="e.g. SalesTable, CustTrans, InventTrans"
-        bind:value={query}
+        bind:value={searchQuery}
       />
     </div>
   </div>
 </header>
 
 <section class="tables-section">
-  {#if results.length > 0}
-    <div class="section-heading">{results.length} result{results.length !== 1 ? 's' : ''}</div>
+  {#if searchResults.length > 0}
+    <div class="section-heading">{searchResults.length} result{searchResults.length !== 1 ? 's' : ''}</div>
     <div class="table-results">
-      {#each results as name}
-        {@const usages = data.tableIndex[name]}
-        {@const def = data.tableDefs[name]}
+      {#each searchResults as tableName}
+        {@const usages = tableUsageIndex[tableName]}
+        {@const tableDef = tableDefs[tableName]}
+        {@const reason = matchReason(tableName, searchQuery.trim().toLowerCase())}
         <div class="table-result-group">
           <div class="table-result-header">
-            <a href="/tables/{name}" class="table-name">{name}</a>
-            {#if def}
-              <span class="pill">{def.module}</span>
-              <span class="mini">{def.description}</span>
+            <a href="/tables/{tableName}" class="table-name">{tableName}</a>
+            {#if tableDef}
+              {@const mod = canonicalModule(tableDef.module)}
+              {#if mod}
+                <span
+                  class="pill"
+                  data-module={mod}
+                  title={tableDef.module}
+                  style="background: var(--mod-clr-bg, rgba(138,213,255,0.15)); color: var(--mod-clr, #c4e7ff); border: 1px solid var(--mod-clr-border, transparent);"
+                >{mod}</span>
+              {/if}
+              <span class="mini">{tableDef.description}</span>
+            {/if}
+            {#if reason}
+              <span class="match-reason">matched {reason}</span>
             {/if}
           </div>
           <div class="table-usages">
@@ -66,19 +135,36 @@
         </div>
       {/each}
     </div>
-  {:else if query.trim().length >= 2}
-    <div class="empty">No tables match "{query.trim()}".</div>
+  {:else if searchQuery.trim().length >= 2}
+    <div class="empty">No tables match "{searchQuery.trim()}".</div>
   {:else}
-    <div class="section-heading">All tables ({tableNames.length})</div>
+    <div class="module-filter-row">
+      {#each moduleOptions as moduleOption}
+        <button
+          class="mod-pill"
+          class:active={moduleFilter === moduleOption}
+          data-module={moduleOption !== 'All' ? moduleOption : undefined}
+          on:click={() => (moduleFilter = moduleOption)}
+        >{moduleOption}</button>
+      {/each}
+    </div>
+    <div class="section-heading">
+      {filteredTables.length} table{filteredTables.length !== 1 ? 's' : ''}
+      {moduleFilter !== 'All' ? ` in ${moduleFilter}` : ''}
+    </div>
     <div class="table-browse-grid">
-      {#each browseable as name}
-        {@const def = data.tableDefs[name]}
-        <a href="/tables/{name}" class="table-browse-item">
-          <span class="table-name-sm">{name}</span>
-          {#if def}
-            <span class="mini">{def.description}</span>
+      {#each filteredTables as tableName}
+        {@const tableDef = tableDefs[tableName]}
+        <a href="/tables/{tableName}" class="table-browse-item">
+          <span class="table-name-sm">{tableName}</span>
+          {#if tableDef}
+            <span class="mini">{tableDef.description}</span>
           {:else}
-            <span class="mini usage-count">{data.tableIndex[name].length} stage{data.tableIndex[name].length !== 1 ? 's' : ''}</span>
+            <span class="mini usage-count"
+              >{tableUsageIndex[tableName].length} stage{tableUsageIndex[tableName].length !== 1
+                ? 's'
+                : ''}</span
+            >
           {/if}
         </a>
       {/each}
