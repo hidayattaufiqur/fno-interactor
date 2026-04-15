@@ -254,7 +254,7 @@
 
       <button class="find-btn" on:click={handleFind} disabled={searchState === 'running'}>
         {#if searchState === 'running'}
-          {loadState === 'loading' ? 'Loading data…' : 'Searching…'}
+          {$fkLoadState === 'loading' ? 'Loading data…' : 'Searching…'}
         {:else}
           Find paths
         {/if}
@@ -266,7 +266,21 @@
     <p class="finder-error">{searchError}</p>
   {/if}
 
-  <!-- Results -->
+  <!-- Loading state -->
+  {#if searchState === 'running'}
+    <div class="finder-loading">
+      <span class="spinner" aria-hidden="true"></span>
+      <div class="loading-text">
+        {#if $fkLoadState === 'loading'}
+          <strong>Loading FK map…</strong>
+          <span class="mini">Fetching 39,380 table associations for the first time (~2 MB). This only happens once per session.</span>
+        {:else}
+          <strong>Searching for paths…</strong>
+          <span class="mini">Running BFS across the FK graph from <em>{sourceTable}</em> to <em>{targetTable}</em>.</span>
+        {/if}
+      </div>
+    </div>
+  {/if}
   {#if searchState === 'done'}
     {#if pathResults.length === 0}
       <div class="finder-empty">
@@ -630,5 +644,52 @@
 
     .finder-arrow { display: none; }
     .finder-controls { flex-direction: row; justify-content: flex-end; }
+  }
+
+  /* ── Loading state ── */
+  .finder-loading {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px 24px;
+    background: rgba(138, 213, 255, 0.05);
+    border: 1px solid rgba(138, 213, 255, 0.15);
+    border-radius: 12px;
+  }
+
+  .loading-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .loading-text strong {
+    font-size: 14px;
+    color: rgba(232, 241, 255, 0.85);
+  }
+
+  .loading-text .mini {
+    color: rgba(232, 241, 255, 0.4);
+  }
+
+  .loading-text em {
+    font-style: normal;
+    color: #8ad5ff;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    border: 2px solid rgba(138, 213, 255, 0.2);
+    border-top-color: rgba(138, 213, 255, 0.8);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 </style>
