@@ -1,4 +1,6 @@
 <script>
+  import { tableDefs } from '$lib/data/flows'
+  import { canonicalModule } from '$lib/utils'
   import { findState } from '$lib/stores/findState'
   import { fkLoadState, fkLoadError, loadFkMap, getAllFkTableNames, getForwardMap, getReverseMap } from '$lib/stores/fkMap'
 
