@@ -1,12 +1,40 @@
 <script>
+  import { onMount } from 'svelte'
   import RelationGraph from '$lib/components/RelationGraph.svelte'
   import { canonicalModule } from '$lib/utils'
+  import { flows, tableDefs } from '$lib/data/flows'
+  import { fkLoadState, loadFkMap, getSchemaEdgesForTable } from '$lib/stores/fkMap'
 
   /** @type {import('./$types').PageData} */
   export let data
 
+  // ── Known tables set (for filtering schema edges to relevant neighbors) ────
+  // Includes every table referenced in any flow stage, plus all tableDefs
+  const knownTables = new Set([
+    ...Object.keys(tableDefs),
+    ...flows.flatMap((flow) => flow.stages.flatMap((stage) => stage.tables)),
+  ])
+
+  // ── Schema FK enrichment (loaded lazily, non-blocking) ─────────────────────
+  onMount(() => { loadFkMap() })
+
+  $: schemaEdges = $fkLoadState === 'ready'
+    ? getSchemaEdgesForTable(data.name, knownTables, 24)
+    : []
+
+  // Remove schema edges that duplicate a hand-written relation (same from+to pair)
+  $: manualEdgePairs = new Set(data.relationsUsing.map((r) => `${r.from}|${r.to}`))
+  $: dedupedSchemaEdges = schemaEdges.filter((e) => !manualEdgePairs.has(`${e.from}|${e.to}`))
+
+  // Combined edges for the graph
+  $: allEdges = [...data.relationsUsing, ...dedupedSchemaEdges]
+
+  // ── Split by direction ─────────────────────────────────────────────────────
   $: outgoing = data.relationsUsing.filter((r) => r.from === data.name)
   $: incoming = data.relationsUsing.filter((r) => r.to === data.name)
+  $: schemaOutgoing = dedupedSchemaEdges.filter((e) => e.from === data.name)
+  $: schemaIncoming = dedupedSchemaEdges.filter((e) => e.to === data.name)
+
   $: mod = canonicalModule(data.def?.module)
 </script>
 
@@ -81,19 +109,20 @@
   </div>
 {/if}
 
-{#if outgoing.length > 0 || incoming.length > 0}
+{#if allEdges.length > 0}
   <section class="detail-section">
     <div class="section-heading">
-      Relation graph — {data.relationsUsing.length} connection{data.relationsUsing.length !== 1 ? 's' : ''}
+      Relation graph — {data.relationsUsing.length} documented{dedupedSchemaEdges.length > 0 ? ` + ${dedupedSchemaEdges.length} schema FK` : ''}
+      {#if $fkLoadState === 'loading'}<span class="mini" style="margin-left:8px;opacity:0.5">loading schema…</span>{/if}
     </div>
-    <RelationGraph tableName={data.name} relations={data.relationsUsing} />
+    <RelationGraph tableName={data.name} relations={allEdges} />
   </section>
 {/if}
 
 {#if outgoing.length > 0 || incoming.length > 0}
   <section class="detail-section">
     <div class="section-heading">
-      Table relations ({data.relationsUsing.length})
+      Table relations — documented ({data.relationsUsing.length})
     </div>
 
     {#if outgoing.length > 0}
@@ -111,9 +140,7 @@
               {#if rel.note}
                 <span class="mini">{rel.note}</span>
               {/if}
-              <a href="/flow/{rel.flowId}/{rel.stageId}" class="pill rel-source"
-                >{rel.stageTitle}</a
-              >
+              <a href="/flow/{rel.flowId}/{rel.stageId}" class="pill rel-source">{rel.stageTitle}</a>
             </div>
           {/each}
         </div>
@@ -135,15 +162,64 @@
               {#if rel.note}
                 <span class="mini">{rel.note}</span>
               {/if}
-              <a href="/flow/{rel.flowId}/{rel.stageId}" class="pill rel-source"
-                >{rel.stageTitle}</a
-              >
+              <a href="/flow/{rel.flowId}/{rel.stageId}" class="pill rel-source">{rel.stageTitle}</a>
             </div>
           {/each}
         </div>
       </div>
     {/if}
   </section>
+{/if}
+
+{#if dedupedSchemaEdges.length > 0}
+  <section class="detail-section">
+    <div class="section-heading schema-section-heading">
+      Schema FK connections — auto-detected ({dedupedSchemaEdges.length})
+      <span class="schema-badge">from FK schema</span>
+    </div>
+    <p class="mini schema-note">
+      These FK links are detected automatically from the full D365FO database schema (39,380 associations)
+      and filtered to tables referenced in documented flows. They may not all be relevant to every business process.
+    </p>
+
+    {#if schemaOutgoing.length > 0}
+      <div class="rel-direction-section">
+        <p class="rel-direction-label">Outgoing — {data.name} has FK fields pointing to</p>
+        <div class="inline-relations">
+          {#each schemaOutgoing as rel}
+            <div class="inline-rel schema-rel">
+              <a href="/tables/{rel.from}" class="rel-from self">{rel.from}</a>
+              <span class="rel-arrow">→</span>
+              <a href="/tables/{rel.to}" class="rel-to">{rel.to}</a>
+              {#if rel.fields?.length}
+                <code class="rel-fields">{rel.fields[0]}</code>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    {#if schemaIncoming.length > 0}
+      <div class="rel-direction-section">
+        <p class="rel-direction-label">Incoming — tables with FK fields pointing to {data.name}</p>
+        <div class="inline-relations">
+          {#each schemaIncoming as rel}
+            <div class="inline-rel schema-rel">
+              <a href="/tables/{rel.from}" class="rel-from">{rel.from}</a>
+              <span class="rel-arrow">→</span>
+              <a href="/tables/{rel.to}" class="rel-to self">{rel.to}</a>
+              {#if rel.fields?.length}
+                <code class="rel-fields">{rel.fields[0]}</code>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </div>
+    {/if}
+  </section>
+{:else if $fkLoadState === 'idle'}
+  <!-- FK map not yet loaded; will auto-populate once user interacts with the page -->
 {/if}
 
 {#if data.usedIn.length > 0}
@@ -161,3 +237,35 @@
     </div>
   </section>
 {/if}
+
+<style>
+  .schema-section-heading {
+    color: rgba(232, 241, 255, 0.45);
+  }
+
+  .schema-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(232, 241, 255, 0.4);
+    margin-left: 8px;
+    vertical-align: middle;
+    letter-spacing: 0.3px;
+  }
+
+  .schema-note {
+    color: rgba(232, 241, 255, 0.35);
+    margin-bottom: 12px;
+  }
+
+  .schema-rel {
+    opacity: 0.65;
+  }
+
+  .schema-rel:hover {
+    opacity: 1;
+  }
+</style>

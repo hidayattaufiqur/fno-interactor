@@ -1,5 +1,7 @@
 <script>
+  import { onMount } from 'svelte'
   import RelationGraph from '$lib/components/RelationGraph.svelte'
+  import { fkLoadState, loadFkMap, getFkEdgesBetween } from '$lib/stores/fkMap'
 
   /** @type {import('./$types').PageData} */
   export let data
@@ -27,13 +29,27 @@
 
   $: currentIndex = filteredStages.findIndex((stageItem) => stageItem.id === stage.id)
 
-  // For the stage relation graph: pick the most-connected table as center
+  // ── Stage relation graph ────────────────────────────────────────────────────
+
   $: stageRelations = stage.relations ?? []
+
+  // Auto-detect FK connections between tables listed in this stage
+  onMount(() => { loadFkMap() })
+  $: schemaStageEdges = $fkLoadState === 'ready' ? getFkEdgesBetween(stage.tables) : []
+
+  // Remove schema edges that duplicate hand-written relations
+  $: manualStagePairs = new Set(stageRelations.map((r) => `${r.from}|${r.to}`))
+  $: newSchemaEdges = schemaStageEdges.filter((e) => !manualStagePairs.has(`${e.from}|${e.to}`))
+
+  // Combined for graph: manual relations take visual precedence
+  $: allStageEdges = [...stageRelations, ...newSchemaEdges]
+
+  // Pick most-connected table as graph hub (prefer manual-relation tables)
   $: graphHub = (() => {
-    if (!stageRelations.length) return null
+    if (!allStageEdges.length) return null
     /** @type {Record<string, number>} */
     const connectionCount = {}
-    for (const relation of stageRelations) {
+    for (const relation of allStageEdges) {
       connectionCount[relation.from] = (connectionCount[relation.from] ?? 0) + 1
       connectionCount[relation.to] = (connectionCount[relation.to] ?? 0) + 1
     }
@@ -112,35 +128,65 @@
 <div class="stage-content">
   <!-- ── Left: Technical reference ── -->
   <div class="stage-main">
-    {#if stage.relations?.length}
+    {#if stageRelations.length || newSchemaEdges.length}
       <section class="stage-section">
-        <h4 class="section-label">Table Relations</h4>
+        <h4 class="section-label">
+          Table Relations
+          {#if newSchemaEdges.length}
+            <span class="schema-count">{stageRelations.length} documented + {newSchemaEdges.length} schema FK</span>
+          {/if}
+        </h4>
         {#if graphHub}
           <div style="margin-bottom: 14px;">
-            <RelationGraph tableName={graphHub} relations={stageRelations} />
+            <RelationGraph tableName={graphHub} relations={allStageEdges} />
           </div>
         {/if}
-        <div class="rel-card-list">
-          {#each stage.relations as rel}
-            <div class="rel-card">
-              <div class="rel-card-header">
-                <a href="/tables/{rel.from}" class="rel-table">{rel.from}</a>
-                <span class="rel-dir">→</span>
-                <a href="/tables/{rel.to}" class="rel-table">{rel.to}</a>
-              </div>
-              {#if rel.fields?.length}
-                <div class="rel-fields-row">
-                  {#each rel.fields as fieldLabel}
-                    <code class="rel-field">{fieldLabel}</code>
-                  {/each}
+
+        {#if stageRelations.length}
+          <div class="rel-card-list">
+            {#each stageRelations as rel}
+              <div class="rel-card">
+                <div class="rel-card-header">
+                  <a href="/tables/{rel.from}" class="rel-table">{rel.from}</a>
+                  <span class="rel-dir">→</span>
+                  <a href="/tables/{rel.to}" class="rel-table">{rel.to}</a>
                 </div>
-              {/if}
-              {#if rel.note}
-                <p class="rel-note">{rel.note}</p>
-              {/if}
+                {#if rel.fields?.length}
+                  <div class="rel-fields-row">
+                    {#each rel.fields as fieldLabel}
+                      <code class="rel-field">{fieldLabel}</code>
+                    {/each}
+                  </div>
+                {/if}
+                {#if rel.note}
+                  <p class="rel-note">{rel.note}</p>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/if}
+
+        {#if newSchemaEdges.length}
+          <div class="schema-fk-section">
+            <p class="schema-fk-label">Auto-detected from FK schema</p>
+            <div class="rel-card-list">
+              {#each newSchemaEdges as rel}
+                <div class="rel-card schema-rel-card">
+                  <div class="rel-card-header">
+                    <a href="/tables/{rel.from}" class="rel-table">{rel.from}</a>
+                    <span class="rel-dir">→</span>
+                    <a href="/tables/{rel.to}" class="rel-table">{rel.to}</a>
+                  </div>
+                  {#if rel.fields?.length}
+                    <div class="rel-fields-row">
+                      <code class="rel-field">{rel.fields[0]}</code>
+                    </div>
+                  {/if}
+                </div>
+              {/each}
             </div>
-          {/each}
-        </div>
+          </div>
+        {/if}
       </section>
     {/if}
 
@@ -157,7 +203,7 @@
       {/if}
     </section>
 
-    {#if !stage.relations?.length}
+    {#if !stageRelations.length && !newSchemaEdges.length && $fkLoadState !== 'loading'}
       <div class="empty" style="font-size:13px; padding: 12px 0;">
         No table relations mapped yet for this stage.
       </div>
@@ -228,6 +274,37 @@
 </div>
 
 <style>
+  .schema-count {
+    font-size: 11px;
+    font-weight: 400;
+    color: rgba(232, 241, 255, 0.35);
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .schema-fk-section {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .schema-fk-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(232, 241, 255, 0.3);
+    margin-bottom: 8px;
+  }
+
+  .schema-rel-card {
+    opacity: 0.6;
+    border-style: dashed;
+  }
+
+  .schema-rel-card:hover {
+    opacity: 1;
+  }
   .step-nav-btn {
     font-size: 12px;
     color: rgba(232, 241, 255, 0.6);

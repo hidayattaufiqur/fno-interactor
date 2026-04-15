@@ -4,7 +4,7 @@
   /** @type {string} */
   let { tableName, relations } = $props()
 
-  /** @typedef {{ from: string; to: string; fields?: string[]; note?: string }} Relation */
+  /** @typedef {{ from: string; to: string; fields?: string[]; note?: string; source?: 'manual'|'schema' }} Relation */
   /** @typedef {{ x: number; y: number }} Point */
 
   // ── Hover state ────────────────────────────────────────────────────────────
@@ -112,9 +112,14 @@
   /**
    * Returns the SVG stroke colour for an edge.
    * Outgoing edges (this table → other) use blue; incoming use green.
-   * @param {boolean} isOutgoing @param {boolean} isHovered @returns {string}
+   * Schema-derived edges are dimmer than manually documented ones.
+   * @param {boolean} isOutgoing @param {boolean} isHovered @param {boolean} isSchema @returns {string}
    */
-  function edgeColour(isOutgoing, isHovered) {
+  function edgeColour(isOutgoing, isHovered, isSchema) {
+    if (isSchema) {
+      if (isOutgoing) return isHovered ? 'rgba(138,213,255,0.55)' : 'rgba(138,213,255,0.15)'
+      return isHovered ? 'rgba(114,233,163,0.55)' : 'rgba(114,233,163,0.15)'
+    }
     if (isOutgoing) return isHovered ? 'rgba(159,210,255,0.85)' : 'rgba(138,213,255,0.28)'
     return isHovered ? 'rgba(114,233,163,0.85)' : 'rgba(114,233,163,0.28)'
   }
@@ -162,6 +167,7 @@
       <!-- ── Edges ── -->
       {#each edges as edge}
         {@const isOutgoing = edge.from === tableName}
+        {@const isSchema = edge.source === 'schema'}
         {@const p1 = nodeBorderPoint(edge.from, edge.to)}
         {@const p2 = nodeBorderPoint(edge.to, edge.from)}
         {@const isHovered = hoveredEdge === edge}
@@ -179,12 +185,13 @@
         <!-- Visible line (pointer-events off — hitbox handles interaction) -->
         <line
           x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-          stroke={edgeColour(isOutgoing, isHovered)}
+          stroke={edgeColour(isOutgoing, isHovered, isSchema)}
           stroke-width={isHovered ? 1.5 : 1}
+          stroke-dasharray={isSchema ? '4 3' : null}
           marker-end="url(#{edgeMarker(isOutgoing, isHovered)})"
           pointer-events="none"
         >
-          <title>{edge.from} → {edge.to}{edge.fields?.length ? `\nFK: ${edge.fields.join(', ')}` : ''}{edge.note ? `\n${edge.note}` : ''}</title>
+          <title>{edge.from} → {edge.to}{edge.fields?.length ? `\nFK: ${edge.fields.join(', ')}` : ''}{edge.note ? `\n${edge.note}` : ''}{isSchema ? '\n(from FK schema)' : ''}</title>
         </line>
       {/each}
 
@@ -262,12 +269,14 @@
       </g>
 
       <!-- ── Legend ── -->
-      <g transform="translate(14, {canvasHeight - 50})">
+      <g transform="translate(14, {canvasHeight - 62})">
         <line x1="0" y1="7" x2="24" y2="7" stroke="rgba(138,213,255,0.55)" stroke-width="1.5" marker-end="url(#arr-b)" />
         <text x="30" y="11" fill="rgba(232,241,255,0.38)" font-size="10" font-family="sans-serif">outgoing FK</text>
         <line x1="0" y1="25" x2="24" y2="25" stroke="rgba(114,233,163,0.55)" stroke-width="1.5" marker-end="url(#arr-g)" />
         <text x="30" y="29" fill="rgba(232,241,255,0.38)" font-size="10" font-family="sans-serif">incoming FK</text>
-        <text x="0" y="46" fill="rgba(232,241,255,0.25)" font-size="9.5" font-family="sans-serif">Hover edge for FK fields · click node to navigate</text>
+        <line x1="0" y1="43" x2="24" y2="43" stroke="rgba(138,213,255,0.3)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-b)" />
+        <text x="30" y="47" fill="rgba(232,241,255,0.28)" font-size="10" font-family="sans-serif">schema FK (auto-detected)</text>
+        <text x="0" y="62" fill="rgba(232,241,255,0.25)" font-size="9.5" font-family="sans-serif">Hover edge for FK fields · click node to navigate</text>
       </g>
     </svg>
   </div>

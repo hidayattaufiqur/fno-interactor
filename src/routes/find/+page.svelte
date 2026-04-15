@@ -2,23 +2,7 @@
   import { tableDefs } from '$lib/data/flows'
   import { canonicalModule } from '$lib/utils'
   import { findState } from '$lib/stores/findState'
-
-  // ── FK map (module-level cache — survives navigation) ──────────────────────
-
-  /** Forward adjacency map loaded from static/data/fk-map.json
-   *  Shape: { parentTable: [[childTable, parentField, childField], ...] }
-   *  @type {Record<string, [string, string, string][]> | null}
-   */
-  let fkMapForward = null
-
-  /** Reverse map built at runtime: child → [[parentTable, parentField, childField], ...] */
-  let fkMapReverse = /** @type {Record<string, [string, string, string][]>} */ ({})
-
-  /** All 5,633 D365FO table names, sorted (prefix matches first in getSuggestions) */
-  let allKnownTables = /** @type {string[]} */ ([])
-
-  let loadState = /** @type {'idle' | 'loading' | 'error'} */ ('idle')
-  let loadError = ''
+  import { fkLoadState, fkLoadError, loadFkMap, getAllFkTableNames, getForwardMap, getReverseMap } from '$lib/stores/fkMap'
 
   // ── Bind store fields to local vars for template convenience ───────────────
 
@@ -34,12 +18,15 @@
   // Sync local vars back to store on any change
   $: findState.set({ sourceInput, targetInput, sourceTable, targetTable, maxHops, pathResults, searchState, searchError })
 
-  // ── Autocomplete suggestions ───────────────────────────────────────────────
+  // ── Autocomplete ───────────────────────────────────────────────────────────
 
   /** @type {string[]} */
   let sourceSuggestions = []
   /** @type {string[]} */
   let targetSuggestions = []
+
+  // Rebuilt once FK map loads; empty until then
+  $: allKnownTables = $fkLoadState === 'ready' ? getAllFkTableNames() : []
 
   /**
    * Returns up to 12 matches, ranking exact prefix matches above substring matches.
@@ -52,10 +39,10 @@
     const substringMatches = []
     for (const tableName of allKnownTables) {
       const lower = tableName.toLowerCase()
-      if (lower === q) return [tableName] // exact — no need to show anything else
+      if (lower === q) return [tableName]
       if (lower.startsWith(q)) prefixMatches.push(tableName)
       else if (lower.includes(q)) substringMatches.push(tableName)
-      if (prefixMatches.length + substringMatches.length >= 40) break // early exit
+      if (prefixMatches.length + substringMatches.length >= 40) break
     }
     return [...prefixMatches, ...substringMatches].slice(0, 12)
   }
@@ -87,42 +74,9 @@
     }
   }
 
-  // ── Data loading ───────────────────────────────────────────────────────────
-
-  async function loadFkMap() {
-    if (fkMapForward) return
-    loadState = 'loading'
-    try {
-      const response = await fetch('/data/fk-map.json')
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      fkMapForward = await response.json()
-      buildReverseMap()
-      const parentSet = new Set(Object.keys(fkMapForward))
-      allKnownTables = [...parentSet]
-      for (const table of Object.keys(fkMapReverse)) {
-        if (!parentSet.has(table)) allKnownTables.push(table)
-      }
-      allKnownTables.sort()
-      loadState = 'idle'
-    } catch (err) {
-      loadState = 'error'
-      loadError = err instanceof Error ? err.message : String(err)
-    }
-  }
-
-  function buildReverseMap() {
-    fkMapReverse = {}
-    for (const [parentTable, children] of Object.entries(fkMapForward)) {
-      for (const [childTable, parentField, childField] of children) {
-        if (!fkMapReverse[childTable]) fkMapReverse[childTable] = []
-        fkMapReverse[childTable].push([parentTable, parentField, childField])
-      }
-    }
-  }
-
   // Kick off pre-loading on first keypress to reduce perceived latency
   function handleFirstType() {
-    if (loadState === 'idle' && !fkMapForward) loadFkMap()
+    if ($fkLoadState === 'idle') loadFkMap()
   }
 
   // ── Pathfinding (BFS) ──────────────────────────────────────────────────────
@@ -136,6 +90,8 @@
    * @returns {{ steps: { table: string; via: string }[] }[]}
    */
   function findPaths(source, target, maxDepth) {
+    const fkMapForward = getForwardMap()
+    const fkMapReverse = getReverseMap()
     if (!fkMapForward) return []
     if (source === target) return [{ steps: [{ table: source, via: '' }] }]
 
@@ -146,10 +102,8 @@
     while (queue.length > 0 && results.length < MAX_RESULTS) {
       const { steps, visited } = queue.shift()
       const currentTable = steps[steps.length - 1].table
-
       if (steps.length > maxDepth + 1) continue
 
-      // Forward edges: currentTable is the parent → expand to children
       for (const [childTable, parentField, childField] of fkMapForward[currentTable] ?? []) {
         const edgeLabel = `${childTable}.${childField} → ${currentTable}.${parentField}`
         if (childTable === target) {
@@ -159,10 +113,8 @@
           queue.push({ steps: [...steps, { table: childTable, via: edgeLabel }], visited: new Set([...visited, childTable]) })
         }
       }
-
       if (results.length >= MAX_RESULTS) break
 
-      // Reverse edges: currentTable is the child → expand to parents
       for (const [parentTable, parentField, childField] of fkMapReverse[currentTable] ?? []) {
         const edgeLabel = `${currentTable}.${childField} → ${parentTable}.${parentField}`
         if (parentTable === target) {
@@ -173,7 +125,6 @@
         }
       }
     }
-
     return results
   }
 
@@ -186,12 +137,12 @@
       return
     }
 
-    if (!fkMapForward) {
+    if ($fkLoadState !== 'ready') {
       searchState = 'running'
       await loadFkMap()
-      if (loadState === 'error') {
+      if ($fkLoadState === 'error') {
         searchState = 'idle'
-        searchError = `Failed to load FK data: ${loadError}`
+        searchError = `Failed to load FK data: ${$fkLoadError}`
         return
       }
     }
