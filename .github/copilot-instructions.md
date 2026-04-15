@@ -32,13 +32,15 @@ Single source of truth for all content. Key exports:
 | Export | Type | Purpose |
 |---|---|---|
 | `flows` | `Flow[]` | All business process flows |
-| `personas` | `string[]` | Full persona list (first entry is `'All'`) |
+| `roles` | `string[]` | Full role list (first entry is `'All'`) |
 | `modules` | `string[]` | Full module list (first entry is `'All'`) |
 | `tableDefs` | `Record<string, TableDef>` | Mini data-dictionary; populated progressively |
 
 **`Flow`** → `id`, `title`, `summary`, `module`, `stages[]`, `edges[]`
 
-**`Stage`** → `id`, `title`, `description`, `persona[]`, `pages[]`, `docs[]`, `pitfalls[]`, `prerequisites[]`, `tables[]`, `relations?[]`, `approvals?[]`
+**`Stage`** → `id`, `title`, `description`, `roles[]`, `menuPaths[]`, `docs[]`, `pitfalls[]`, `prerequisites[]`, `tables[]`, `relations?[]`, `approvals?[]`
+
+> **Naming conventions:** `roles` (was `persona`/`personas`) — the list of D365FO roles that perform this stage. `menuPaths` (was `pages`) — D365FO navigation menu paths for the stage.
 
 **`Stage.relations`** — field-level FK links between tables at a stage:
 ```ts
@@ -55,9 +57,9 @@ Adding a new `TableDef`: add an entry to `tableDefs` in `flows.ts`.
 
 ### Layout and state
 
-- `+layout.svelte` owns the sidebar nav: module filter (component state) + flow list + "Table Reference" link
+- `+layout.svelte` owns the sidebar nav: module filter (component state) + flow list + "Table Reference" link + "Find Table Path" link
 - Module filter state stays in the layout and persists across navigation
-- Persona filter, view mode, and showApprovals are **per-page state** in `[stageId]/+page.svelte` — they reset on route change (by design; `$: if (flow) persona = 'All'`)
+- Role filter, view mode, and showApprovals are **per-page state** in `[stageId]/+page.svelte` — they reset on route change (by design; `$: if (flow) roleFilter = 'All'`)
 - Current flow/stage is derived from URL params via `$page.params`
 
 ## Key Conventions
@@ -71,6 +73,13 @@ Adding a new `TableDef`: add an entry to `tableDefs` in `flows.ts`.
 2. Add a `TableDef` entry to `tableDefs` with key fields, FK targets, and a `docsUrl`
 3. Replace generic/placeholder `docs[]` links on stages with specific MS Learn URLs
 4. OTC (`id: 'otc'`) is the gold-standard reference; use it as a template for other flows
+
+**URL validation rule — always verify before committing:**
+- CDM schema URLs (`learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/...`) have unpredictable `category/subcategory/type/` paths — **never guess; always `curl -L` to confirm 200**
+- Known corrections to remember: `CustTable` is under `.../common/customer/main/` (not `.../finance/accountsreceivable/main/`)
+- Feature doc URLs can move between `dynamics365/finance/` and `dynamics365/supply-chain/` — verify the exact prefix
+- If no CDM schema page exists for a table (e.g. `CustSettlement`), use the nearest feature-level overview page instead
+- Run `curl -s -o /dev/null -w "%{http_code}" -L <url>` for each URL before writing it to `flows.ts`
 
 **Table name links:** Anywhere a D365FO table name appears in stage detail, it links to `/tables/[name]`. The tables route handles tables that have no `TableDef` yet (shows "used in" only).
 

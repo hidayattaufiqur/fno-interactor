@@ -2,8 +2,8 @@ export type Stage = {
   id: string
   title: string
   description: string
-  persona: string[]
-  pages: string[]
+  roles: string[]
+  menuPaths: string[]
   docs: { title: string; url: string }[]
   pitfalls: string[]
   prerequisites: string[]
@@ -41,7 +41,7 @@ export type TableDef = {
   docsUrl?: string
 }
 
-export const personas = [
+export const roles = [
   'All',
   'Sales',
   'CSR',
@@ -81,8 +81,8 @@ export const flows: Flow[] = [
         id: 'quote',
         title: 'Create Quote',
         description: 'Capture a customer offer with pricing, validity dates, and item lines before converting to a sales order.',
-        persona: ['Sales'],
-        pages: ['Sales and marketing > Sales quotes > All sales quotes'],
+        roles: ['Sales'],
+        menuPaths: ['Sales and marketing > Sales quotes > All sales quotes'],
         docs: [
           {
             title: 'Sales quotations overview',
@@ -132,8 +132,8 @@ export const flows: Flow[] = [
         id: 'so',
         title: 'Confirm Sales Order',
         description: 'Convert quote (or create directly) into a confirmed sales order, setting delivery dates, dimensions, and inventory reservations.',
-        persona: ['Sales', 'CSR'],
-        pages: ['Sales and marketing > Sales orders > All sales orders'],
+        roles: ['Sales', 'CSR'],
+        menuPaths: ['Sales and marketing > Sales orders > All sales orders'],
         docs: [
           {
             title: 'Create sales orders',
@@ -183,8 +183,8 @@ export const flows: Flow[] = [
         id: 'pickpack',
         title: 'Pick / Pack / Ship',
         description: 'Reserve inventory, generate warehouse work orders, pick, pack, and ship goods to the customer.',
-        persona: ['Warehouse'],
-        pages: [
+        roles: ['Warehouse'],
+        menuPaths: [
           'Warehouse management > Work > All work',
           'Warehouse management > Shipments > All shipments',
           'Warehouse management > Loads > All loads',
@@ -243,8 +243,8 @@ export const flows: Flow[] = [
         id: 'invoice',
         title: 'Post Invoice',
         description: 'Generate and post a customer invoice, creating AR subledger (CustTrans) and general-ledger entries.',
-        persona: ['AR'],
-        pages: ['Accounts receivable > Invoices > Open customer invoices'],
+        roles: ['AR'],
+        menuPaths: ['Accounts receivable > Invoices > Open customer invoices'],
         docs: [
           {
             title: 'Customer invoicing',
@@ -300,8 +300,8 @@ export const flows: Flow[] = [
         id: 'payment',
         title: 'Receive Payment',
         description: 'Enter, post, and settle customer payment against the open invoice, clearing the AR balance.',
-        persona: ['AR'],
-        pages: [
+        roles: ['AR'],
+        menuPaths: [
           'Accounts receivable > Payments > Customer payment journal',
           'Accounts receivable > Transactions > Settle open transactions',
         ],
@@ -370,8 +370,8 @@ export const flows: Flow[] = [
         id: 'req',
         title: 'Create Requisition',
         description: 'Request items/services for approval.',
-        persona: ['Buyer', 'CSR'],
-        pages: ['Procurement and sourcing > Purchase requisitions'],
+        roles: ['Buyer', 'CSR'],
+        menuPaths: ['Procurement and sourcing > Purchase requisitions'],
         docs: [
           {
             title: 'Purchase requisitions overview',
@@ -387,8 +387,8 @@ export const flows: Flow[] = [
         id: 'po',
         title: 'Issue Purchase Order',
         description: 'Convert approved req or create PO direct.',
-        persona: ['Buyer'],
-        pages: ['Procurement and sourcing > Purchase orders > All purchase orders'],
+        roles: ['Buyer'],
+        menuPaths: ['Procurement and sourcing > Purchase orders > All purchase orders'],
         docs: [
           {
             title: 'Purchase orders overview',
@@ -418,8 +418,8 @@ export const flows: Flow[] = [
         id: 'receipt',
         title: 'Product Receipt',
         description: 'Receive goods/services and update on-hand.',
-        persona: ['Warehouse'],
-        pages: ['Procurement and sourcing > Purchase orders > Product receipt'],
+        roles: ['Warehouse'],
+        menuPaths: ['Procurement and sourcing > Purchase orders > Product receipt'],
         docs: [
           {
             title: 'Product receipts against purchase orders',
@@ -434,8 +434,8 @@ export const flows: Flow[] = [
         id: 'vendor-invoice',
         title: 'Vendor Invoice',
         description: 'Match invoice to receipt and post liabilities.',
-        persona: ['AP'],
-        pages: ['Accounts payable > Invoices > Pending vendor invoices'],
+        roles: ['AP'],
+        menuPaths: ['Accounts payable > Invoices > Pending vendor invoices'],
         docs: [
           {
             title: 'Vendor invoices overview',
@@ -465,8 +465,8 @@ export const flows: Flow[] = [
         id: 'vendor-payment',
         title: 'Vendor Payment',
         description: 'Propose and settle vendor payments.',
-        persona: ['AP'],
-        pages: ['Accounts payable > Payments > Payment journal'],
+        roles: ['AP'],
+        menuPaths: ['Accounts payable > Payments > Payment journal'],
         docs: [
           {
             title: 'Vendor payment overview',
@@ -495,8 +495,8 @@ export const flows: Flow[] = [
         id: 'forecast',
         title: 'Forecast / Master Plan',
         description: 'Create demand forecasts and run master planning.',
-        persona: ['Planner'],
-        pages: ['Master planning > Forecast > Demand forecast'],
+        roles: ['Planner'],
+        menuPaths: ['Master planning > Forecast > Demand forecast'],
         docs: [
           {
             title: 'Demand forecasting setup',
@@ -515,8 +515,8 @@ export const flows: Flow[] = [
         id: 'bom',
         title: 'BOM / Route',
         description: 'Model materials and operations.',
-        persona: ['Production'],
-        pages: ['Product information management > BOMs', 'Production control > Routes'],
+        roles: ['Production'],
+        menuPaths: ['Product information management > BOMs', 'Production control > Routes'],
         docs: [
           {
             title: 'Bills of materials and formulas',
@@ -545,8 +545,8 @@ export const flows: Flow[] = [
         id: 'release',
         title: 'Release to Warehouse',
         description: 'Release planned/firmed orders to execution.',
-        persona: ['Production', 'Warehouse'],
-        pages: ['Production control > Production orders > All production orders'],
+        roles: ['Production', 'Warehouse'],
+        menuPaths: ['Production control > Production orders > All production orders'],
         docs: [
           {
             title: 'Production process overview',
@@ -575,8 +575,8 @@ export const flows: Flow[] = [
         id: 'execute',
         title: 'Execute / Report as Finished',
         description: 'Start, register, RAF, and end production.',
-        persona: ['Production'],
-        pages: ['Production control > Production orders > All production orders'],
+        roles: ['Production'],
+        menuPaths: ['Production control > Production orders > All production orders'],
         docs: [
           {
             title: 'Report production orders as finished',
@@ -605,8 +605,8 @@ export const flows: Flow[] = [
         id: 'cost',
         title: 'Cost and Close',
         description: 'End job, post cost, and reconcile variances.',
-        persona: ['Controller'],
-        pages: ['Production control > Periodic > End production orders'],
+        roles: ['Controller'],
+        menuPaths: ['Production control > Periodic > End production orders'],
         docs: [
           {
             title: 'Production order cost analysis',
@@ -649,8 +649,8 @@ export const flows: Flow[] = [
         id: 'setup',
         title: 'Item Setup',
         description: 'Dimensions, tracking, and storage policies.',
-        persona: ['Warehouse', 'Controller'],
-        pages: ['Product information management > Released products'],
+        roles: ['Warehouse', 'Controller'],
+        menuPaths: ['Product information management > Released products'],
         docs: [
           {
             title: 'Product information overview',
@@ -685,8 +685,8 @@ export const flows: Flow[] = [
         id: 'onhand',
         title: 'On-hand and Reservations',
         description: 'Monitor availability and reservations.',
-        persona: ['Warehouse', 'Sales', 'Planner'],
-        pages: ['Inventory management > Inquiries > On-hand'],
+        roles: ['Warehouse', 'Sales', 'Planner'],
+        menuPaths: ['Inventory management > Inquiries > On-hand'],
         docs: [
           {
             title: 'Inventory on-hand list',
@@ -715,8 +715,8 @@ export const flows: Flow[] = [
         id: 'movement',
         title: 'Transfer / Movement',
         description: 'Transfers across sites/warehouses/locations.',
-        persona: ['Warehouse'],
-        pages: ['Inventory management > Periodic > Transfer orders'],
+        roles: ['Warehouse'],
+        menuPaths: ['Inventory management > Periodic > Transfer orders'],
         docs: [
           {
             title: 'Transfer orders',
@@ -745,8 +745,8 @@ export const flows: Flow[] = [
         id: 'count',
         title: 'Cycle Counting',
         description: 'Count and reconcile on-hand.',
-        persona: ['Warehouse', 'Controller'],
-        pages: ['Warehouse management > Inquiries and reports > Counting journals'],
+        roles: ['Warehouse', 'Controller'],
+        menuPaths: ['Warehouse management > Inquiries and reports > Counting journals'],
         docs: [
           {
             title: 'Cycle counting',
@@ -775,8 +775,8 @@ export const flows: Flow[] = [
         id: 'close',
         title: 'Inventory Close',
         description: 'Close period and settle receipts/issues.',
-        persona: ['Controller'],
-        pages: ['Inventory management > Periodic tasks > Close and adjust'],
+        roles: ['Controller'],
+        menuPaths: ['Inventory management > Periodic tasks > Close and adjust'],
         docs: [
           {
             title: 'Inventory close',
@@ -819,8 +819,8 @@ export const flows: Flow[] = [
         id: 'proj-quote',
         title: 'Project Quotation',
         description: 'Scope, pricing, and quote approvals.',
-        persona: ['Project', 'Sales'],
-        pages: ['Project management and accounting > Quotes'],
+        roles: ['Project', 'Sales'],
+        menuPaths: ['Project management and accounting > Quotes'],
         docs: [
           {
             title: 'Project quotations',
@@ -836,8 +836,8 @@ export const flows: Flow[] = [
         id: 'proj-contract',
         title: 'Project Contract & WBS',
         description: 'Contracts, subprojects, WBS planning.',
-        persona: ['Project'],
-        pages: ['Project management and accounting > Projects'],
+        roles: ['Project'],
+        menuPaths: ['Project management and accounting > Projects'],
         docs: [
           {
             title: 'Project contracts',
@@ -866,8 +866,8 @@ export const flows: Flow[] = [
         id: 'proj-exec',
         title: 'Execute & Track',
         description: 'Timesheets, expenses, item consumption.',
-        persona: ['Project'],
-        pages: ['Project management and accounting > Timesheets'],
+        roles: ['Project'],
+        menuPaths: ['Project management and accounting > Timesheets'],
         docs: [
           {
             title: 'Project transactions overview',
@@ -896,8 +896,8 @@ export const flows: Flow[] = [
         id: 'proj-invoice',
         title: 'Invoice (On-account/Progress)',
         description: 'Create invoice proposals and post revenue.',
-        persona: ['Project', 'AR'],
-        pages: ['Project management and accounting > Periodic > Invoice proposals'],
+        roles: ['Project', 'AR'],
+        menuPaths: ['Project management and accounting > Periodic > Invoice proposals'],
         docs: [
           {
             title: 'Manage project invoice proposals',
@@ -927,8 +927,8 @@ export const flows: Flow[] = [
         id: 'proj-revrec',
         title: 'Revenue Recognition',
         description: 'Recognize and post revenue/deferrals.',
-        persona: ['Controller'],
-        pages: ['Project management and accounting > Periodic > Revenue recognition'],
+        roles: ['Controller'],
+        menuPaths: ['Project management and accounting > Periodic > Revenue recognition'],
         docs: [
           {
             title: 'Recognize project revenue',
@@ -971,8 +971,8 @@ export const flows: Flow[] = [
         id: 'gl-setup',
         title: 'GL & Calendar Setup',
         description: 'Ledger, currency, periods, and dimensions.',
-        persona: ['Controller'],
-        pages: ['General ledger > Ledger setup'],
+        roles: ['Controller'],
+        menuPaths: ['General ledger > Ledger setup'],
         docs: [
           {
             title: 'Plan your chart of accounts',
@@ -1013,8 +1013,8 @@ export const flows: Flow[] = [
         id: 'journals',
         title: 'Journals & Allocations',
         description: 'Daily journals and allocation rules.',
-        persona: ['Controller'],
-        pages: ['General ledger > Journal entries > General journal'],
+        roles: ['Controller'],
+        menuPaths: ['General ledger > Journal entries > General journal'],
         docs: [
           {
             title: 'Ledger and subledger accounting overview',
@@ -1039,8 +1039,8 @@ export const flows: Flow[] = [
         id: 'consol',
         title: 'Consolidation & Elimination',
         description: 'Combine entities and eliminate intercompany.',
-        persona: ['Controller'],
-        pages: ['General ledger > Consolidations'],
+        roles: ['Controller'],
+        menuPaths: ['General ledger > Consolidations'],
         docs: [
           {
             title: 'Prepare a legal entity for the consolidation process',
@@ -1069,8 +1069,8 @@ export const flows: Flow[] = [
         id: 'close',
         title: 'Period Close & Reporting',
         description: 'Close subledgers, run close checklist, report.',
-        persona: ['Controller'],
-        pages: ['General ledger > Period close'],
+        roles: ['Controller'],
+        menuPaths: ['General ledger > Period close'],
         docs: [
           {
             title: 'Year-end close',
@@ -1112,8 +1112,8 @@ export const flows: Flow[] = [
         id: 'positions',
         title: 'Positions & Workers',
         description: 'Create positions, assign workers, and employment.',
-        persona: ['HR'],
-        pages: ['Human resources > Workers'],
+        roles: ['HR'],
+        menuPaths: ['Human resources > Workers'],
         docs: [
           {
             title: 'Positions — Dynamics 365 Human Resources',
@@ -1142,8 +1142,8 @@ export const flows: Flow[] = [
         id: 'onboard',
         title: 'Onboard',
         description: 'Tasks, documents, and access.',
-        persona: ['HR', 'IT'],
-        pages: ['Human resources > Workers > Onboarding'],
+        roles: ['HR', 'IT'],
+        menuPaths: ['Human resources > Workers > Onboarding'],
         docs: [
           {
             title: 'Task management (onboarding, offboarding, transitions)',
@@ -1172,8 +1172,8 @@ export const flows: Flow[] = [
         id: 'comp',
         title: 'Compensation & Benefits',
         description: 'Plans, eligibility, enrollment.',
-        persona: ['HR'],
-        pages: ['Human resources > Compensation management'],
+        roles: ['HR'],
+        menuPaths: ['Human resources > Compensation management'],
         docs: [
           {
             title: 'Compensation plans overview',
@@ -1202,8 +1202,8 @@ export const flows: Flow[] = [
         id: 'absence',
         title: 'Leave / Absence',
         description: 'Accruals, requests, approvals.',
-        persona: ['HR'],
-        pages: ['Human resources > Leave and absence'],
+        roles: ['HR'],
+        menuPaths: ['Human resources > Leave and absence'],
         docs: [
           {
             title: 'Configure leave and absence types',
@@ -1233,8 +1233,8 @@ export const flows: Flow[] = [
         id: 'offboard',
         title: 'Offboard',
         description: 'Terminate, final pay, and revoke access.',
-        persona: ['HR', 'IT'],
-        pages: ['Human resources > Workers > Terminate'],
+        roles: ['HR', 'IT'],
+        menuPaths: ['Human resources > Workers > Terminate'],
         docs: [
           {
             title: 'Overview of the Terminate workers business process',
@@ -1277,8 +1277,8 @@ export const flows: Flow[] = [
         id: 'agreement',
         title: 'Service Agreement',
         description: 'Define coverage, SLA, and billing rules.',
-        persona: ['Service'],
-        pages: ['Service management > Service agreements'],
+        roles: ['Service'],
+        menuPaths: ['Service management > Service agreements'],
         docs: [
           {
             title: 'Develop and establish service agreements overview',
@@ -1303,8 +1303,8 @@ export const flows: Flow[] = [
         id: 'service-order',
         title: 'Service Orders',
         description: 'Create orders, assign items/hours, schedule.',
-        persona: ['Service'],
-        pages: ['Service management > Service orders'],
+        roles: ['Service'],
+        menuPaths: ['Service management > Service orders'],
         docs: [
           {
             title: 'Service orders',
@@ -1333,8 +1333,8 @@ export const flows: Flow[] = [
         id: 'dispatch',
         title: 'Dispatch',
         description: 'Schedule technicians and manage visits.',
-        persona: ['Service'],
-        pages: ['Service management > Periodic tasks > Dispatch board'],
+        roles: ['Service'],
+        menuPaths: ['Service management > Periodic tasks > Dispatch board'],
         docs: [
           {
             title: 'Dispatch board',
@@ -1357,8 +1357,8 @@ export const flows: Flow[] = [
         id: 'service-bill',
         title: 'Bill Service',
         description: 'Invoice time/materials and subscriptions.',
-        persona: ['Service', 'AR'],
-        pages: ['Service management > Service orders > Service invoices'],
+        roles: ['Service', 'AR'],
+        menuPaths: ['Service management > Service orders > Service invoices'],
         docs: [
           {
             title: 'Service subscriptions',

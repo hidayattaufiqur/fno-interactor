@@ -1,223 +1,244 @@
 <script>
+  import RelationGraph from '$lib/components/RelationGraph.svelte'
+
   /** @type {import('./$types').PageData} */
   export let data
 
-  let persona = 'All'
-  let showApprovals = false
-  let viewMode = 'process'
+  let roleFilter = 'All'
 
   $: flow = data.flow
   $: stage = data.stage
 
-  // Reset persona when navigating to a different flow
-  $: if (flow) persona = 'All'
+  // Only reset role filter when navigating to a *different* flow
+  let activeFlowId = ''
+  $: {
+    if (flow && flow.id !== activeFlowId) {
+      roleFilter = 'All'
+      activeFlowId = flow.id
+    }
+  }
 
-  $: flowPersonas = ['All', ...new Set(flow.stages.flatMap((s) => s.persona))]
+  $: flowRoles = ['All', ...new Set(flow.stages.flatMap((stage) => stage.roles))]
 
   $: filteredStages =
-    persona === 'All'
+    roleFilter === 'All'
       ? flow.stages
-      : flow.stages.filter((s) => s.persona.includes(persona))
+      : flow.stages.filter((stage) => stage.roles.includes(roleFilter))
 
-  $: relationEdges = flow.stages.flatMap((s) => s.relations ?? [])
-  $: relationNodes = Array.from(new Set(relationEdges.flatMap((e) => [e.from, e.to])))
+  $: currentIndex = filteredStages.findIndex((stageItem) => stageItem.id === stage.id)
+
+  // For the stage relation graph: pick the most-connected table as center
+  $: stageRelations = stage.relations ?? []
+  $: graphHub = (() => {
+    if (!stageRelations.length) return null
+    /** @type {Record<string, number>} */
+    const connectionCount = {}
+    for (const relation of stageRelations) {
+      connectionCount[relation.from] = (connectionCount[relation.from] ?? 0) + 1
+      connectionCount[relation.to] = (connectionCount[relation.to] ?? 0) + 1
+    }
+    return Object.entries(connectionCount).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+  })()
 </script>
 
 <svelte:head>
   <title>{flow.title} — {stage.title} · D365FO Navigator</title>
 </svelte:head>
 
-<header class="hero">
-  <div>
-    <p class="eyebrow">Dynamics 365 Finance &amp; Operations · {flow.module}</p>
-    <h2>{flow.title}</h2>
-    <p class="lede">{flow.summary}</p>
-  </div>
-  <div class="controls">
-    <label>
-      Persona
-      <select bind:value={persona}>
-        {#each flowPersonas as p}
-          <option value={p}>{p}</option>
-        {/each}
-      </select>
-    </label>
-
-    <div class="view-toggle" role="group" aria-label="View mode">
-      <button class:view-selected={viewMode === 'process'} on:click={() => (viewMode = 'process')}>
-        Process
-      </button>
-      <button class:view-selected={viewMode === 'tables'} on:click={() => (viewMode = 'tables')}>
-        Tables / relations
-      </button>
+<header class="flow-header" data-module={flow.module}>
+  <div class="flow-header-main">
+    <div class="flow-meta">
+      <span class="module-badge" data-module={flow.module}>{flow.module}</span>
+      <span class="eyebrow">{flow.title}</span>
     </div>
-
-    <label class="toggle">
-      <input type="checkbox" bind:checked={showApprovals} />
-      <span>Show approvals</span>
-    </label>
-  </div>
-</header>
-
-<section class="flow-map">
-  {#if viewMode === 'process'}
-    {#if filteredStages.length === 0}
-      <div class="empty">No stages match this persona yet.</div>
-    {:else}
-      <div class="nodes">
-        {#each filteredStages as s, i}
-          <div class="node-wrapper">
-            <a
-              href="/flow/{flow.id}/{s.id}"
-              class="node"
-              class:active={stage.id === s.id}
-              aria-current={stage.id === s.id ? 'page' : undefined}
-            >
-              <div class="node-title">{s.title}</div>
-              <div class="node-meta">
-                <span class="pill">{s.persona.join(', ')}</span>
-                {#if s.prerequisites.length}
-                  <span class="mini">{s.prerequisites.join(' • ')}</span>
-                {/if}
-              </div>
-            </a>
-            {#if i < filteredStages.length - 1}
-              <div class="connector"></div>
-            {/if}
-          </div>
-        {/each}
-      </div>
-    {/if}
-  {:else}
-    {#if relationEdges.length === 0}
-      <div class="empty">No relations mapped yet for this flow.</div>
-    {:else}
-      <div class="relation-grid">
-        <div class="relation-nodes">
-          {#each relationNodes as node}
-            <a href="/tables/{node}" class="rel-node">{node}</a>
-          {/each}
-        </div>
-        <div class="relation-edges">
-          {#each relationEdges as edge}
-            <div class="rel-edge">
-              <a href="/tables/{edge.from}" class="rel-from">{edge.from}</a>
-              <span class="rel-arrow">→</span>
-              <a href="/tables/{edge.to}" class="rel-to">{edge.to}</a>
-              {#if edge.note}
-                <span class="mini">{edge.note}</span>
-              {/if}
-              {#if edge.fields?.length}
-                <span class="mini fields">Fields: {edge.fields.join(', ')}</span>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      </div>
-    {/if}
-  {/if}
-</section>
-
-<section class="stage-detail">
-  <div class="stage-head">
-    <div>
-      <p class="eyebrow">Stage</p>
-      <h3>{stage.title}</h3>
-      <p class="lede">{stage.description}</p>
-    </div>
+    <h2 class="stage-heading">{stage.title}</h2>
+    <p class="lede">{stage.description}</p>
     <div class="chips">
-      {#each stage.persona as p}
-        <span class="chip">{p}</span>
+      {#each stage.roles as role}
+        <span class="chip" title="Business role">{role}</span>
       {/each}
     </div>
   </div>
-
-  <div class="grid">
-    <div class="card">
-      <div class="card-label">Navigate to</div>
-      <ul>
-        {#each stage.pages as pg}
-          <li>{pg}</li>
+  <div class="controls">
+    <label>
+      Filter by role
+      <select bind:value={roleFilter}>
+        {#each flowRoles as role}
+          <option value={role}>{role}</option>
         {/each}
-      </ul>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Prerequisites</div>
-      {#if stage.prerequisites.length}
-        <ul>
-          {#each stage.prerequisites as pre}
-            <li>{pre}</li>
-          {/each}
-        </ul>
-      {:else}
-        <p class="mini">None</p>
-      {/if}
-    </div>
-
-    <div class="card">
-      <div class="card-label">Tables / entities</div>
-      <ul>
-        {#each stage.tables as tbl}
-          <li><a href="/tables/{tbl}">{tbl}</a></li>
-        {/each}
-      </ul>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Common pitfalls</div>
-      {#if stage.pitfalls.length}
-        <ul>
-          {#each stage.pitfalls as pit}
-            <li>{pit}</li>
-          {/each}
-        </ul>
-      {:else}
-        <p class="mini">None documented yet.</p>
-      {/if}
-    </div>
-
-    <div class="card">
-      <div class="card-label">Docs</div>
-      <ul>
-        {#each stage.docs as doc}
-          <li>
-            <a href={doc.url} target="_blank" rel="noreferrer">{doc.title}</a>
-          </li>
-        {/each}
-      </ul>
-    </div>
-
-    {#if showApprovals && stage.approvals?.length}
-      <div class="card">
-        <div class="card-label">Approvals</div>
-        <ul>
-          {#each stage.approvals as app}
-            <li>{app}</li>
-          {/each}
-        </ul>
-      </div>
+      </select>
+    </label>
+    {#if currentIndex > 0}
+      <a
+        href="/flow/{flow.id}/{filteredStages[currentIndex - 1].id}"
+        class="step-nav-btn"
+        aria-label="Previous stage"
+      >← Prev</a>
     {/if}
+    {#if currentIndex < filteredStages.length - 1}
+      <a
+        href="/flow/{flow.id}/{filteredStages[currentIndex + 1].id}"
+        class="step-nav-btn"
+        aria-label="Next stage"
+      >Next →</a>
+    {/if}
+  </div>
+</header>
 
+<nav class="stage-pipeline" aria-label="Flow stages">
+  {#if filteredStages.length === 0}
+    <div class="mini">No stages match this role.</div>
+  {:else}
+    {#each filteredStages as stageItem, i}
+      <div class="pipeline-step">
+        <a
+          href="/flow/{flow.id}/{stageItem.id}"
+          class="pipeline-node"
+          class:active={stage.id === stageItem.id}
+          aria-current={stage.id === stageItem.id ? 'page' : undefined}
+        >
+          <span class="step-num">Step {i + 1}</span>
+          <span class="step-title">{stageItem.title}</span>
+          <span class="pill" style="font-size:10px;padding:2px 6px;">{stageItem.roles.join(', ')}</span>
+        </a>
+        {#if i < filteredStages.length - 1}
+          <div class="pipeline-arrow" aria-hidden="true">→</div>
+        {/if}
+      </div>
+    {/each}
+  {/if}
+</nav>
+
+<div class="stage-content">
+  <!-- ── Left: Technical reference ── -->
+  <div class="stage-main">
     {#if stage.relations?.length}
-      <div class="card card-wide">
-        <div class="card-label">Table relations at this stage</div>
-        <div class="inline-relations">
+      <section class="stage-section">
+        <h4 class="section-label">Table Relations</h4>
+        {#if graphHub}
+          <div style="margin-bottom: 14px;">
+            <RelationGraph tableName={graphHub} relations={stageRelations} />
+          </div>
+        {/if}
+        <div class="rel-card-list">
           {#each stage.relations as rel}
-            <div class="inline-rel">
-              <a href="/tables/{rel.from}" class="rel-from">{rel.from}</a>
-              <span class="rel-arrow">→</span>
-              <a href="/tables/{rel.to}" class="rel-to">{rel.to}</a>
+            <div class="rel-card">
+              <div class="rel-card-header">
+                <a href="/tables/{rel.from}" class="rel-table">{rel.from}</a>
+                <span class="rel-dir">→</span>
+                <a href="/tables/{rel.to}" class="rel-table">{rel.to}</a>
+              </div>
               {#if rel.fields?.length}
-                <code class="rel-fields">{rel.fields.join(', ')}</code>
+                <div class="rel-fields-row">
+                  {#each rel.fields as fieldLabel}
+                    <code class="rel-field">{fieldLabel}</code>
+                  {/each}
+                </div>
               {/if}
               {#if rel.note}
-                <span class="mini">{rel.note}</span>
+                <p class="rel-note">{rel.note}</p>
               {/if}
             </div>
           {/each}
         </div>
+      </section>
+    {/if}
+
+    <section class="stage-section">
+      <h4 class="section-label">Tables &amp; Entities</h4>
+      {#if stage.tables.length}
+        <div class="table-chips">
+          {#each stage.tables as tableName}
+            <a href="/tables/{tableName}" class="table-chip">{tableName}</a>
+          {/each}
+        </div>
+      {:else}
+        <p class="mini">None documented yet.</p>
+      {/if}
+    </section>
+
+    {#if !stage.relations?.length}
+      <div class="empty" style="font-size:13px; padding: 12px 0;">
+        No table relations mapped yet for this stage.
       </div>
     {/if}
   </div>
-</section>
+
+  <!-- ── Right: Process context ── -->
+  <aside class="stage-aside">
+    <div class="aside-card">
+      <div class="card-label">D365FO Navigation</div>
+      {#if stage.menuPaths.length}
+        <ul>
+          {#each stage.menuPaths as menuPath}
+            <li class="mini">{menuPath}</li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="mini" style="margin-top:6px;">—</p>
+      {/if}
+    </div>
+
+    {#if stage.prerequisites.length}
+      <div class="aside-card">
+        <div class="card-label">Prerequisites</div>
+        <ul>
+          {#each stage.prerequisites as prerequisite}
+            <li class="mini">{prerequisite}</li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+
+    {#if stage.pitfalls.length}
+      <div class="aside-card aside-pitfalls">
+        <div class="card-label">⚠ Common Pitfalls</div>
+        <ul>
+          {#each stage.pitfalls as pitfall}
+            <li class="mini">{pitfall}</li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+
+    {#if stage.docs.length}
+      <div class="aside-card">
+        <div class="card-label">Learn More</div>
+        <ul>
+          {#each stage.docs as docLink}
+            <li>
+              <a href={docLink.url} target="_blank" rel="noreferrer" class="mini">{docLink.title} ↗</a>
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+
+    {#if stage.approvals?.length}
+      <div class="aside-card">
+        <div class="card-label">Approvals</div>
+        <ul>
+          {#each stage.approvals as approval}
+            <li class="mini">{approval}</li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
+  </aside>
+</div>
+
+<style>
+  .step-nav-btn {
+    font-size: 12px;
+    color: rgba(232, 241, 255, 0.6);
+    text-decoration: none;
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    transition: all 0.15s;
+  }
+  .step-nav-btn:hover {
+    border-color: rgba(138, 213, 255, 0.3);
+    color: #e8f1ff;
+  }
+</style>
