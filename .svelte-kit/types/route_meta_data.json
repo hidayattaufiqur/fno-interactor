@@ -1,0 +1,22 @@
+{
+	"/": [
+		"src/routes/+layout.js",
+		"src/routes/+layout.js"
+	],
+	"/flow/[flowId]": [
+		"src/routes/flow/[flowId]/+page.js",
+		"src/routes/+layout.js"
+	],
+	"/flow/[flowId]/[stageId]": [
+		"src/routes/flow/[flowId]/[stageId]/+page.js",
+		"src/routes/+layout.js"
+	],
+	"/tables": [
+		"src/routes/tables/+page.js",
+		"src/routes/+layout.js"
+	],
+	"/tables/[name]": [
+		"src/routes/tables/[name]/+page.js",
+		"src/routes/+layout.js"
+	]
+}

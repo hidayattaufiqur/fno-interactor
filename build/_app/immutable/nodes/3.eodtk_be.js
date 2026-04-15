@@ -1,0 +1,1 @@
+import{f as t}from"../chunks/BfJ4JsVu.js";import{e as f,r as l}from"../chunks/CQG01CFa.js";function d({params:o}){const e=t.find(r=>r.id===o.flowId);throw e?l(302,`/flow/${o.flowId}/${e.stages[0].id}`):f(404,`Flow "${o.flowId}" not found`)}const w=Object.freeze(Object.defineProperty({__proto__:null,load:d},Symbol.toStringTag,{value:"Module"}));export{w as universal};
