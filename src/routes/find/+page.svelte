@@ -1,6 +1,4 @@
 <script>
-  import { tableDefs } from '$lib/data/flows'
-  import { canonicalModule } from '$lib/utils'
   import { findState } from '$lib/stores/findState'
   import { fkLoadState, fkLoadError, loadFkMap, getAllFkTableNames, getForwardMap, getReverseMap } from '$lib/stores/fkMap'
 
@@ -303,36 +301,25 @@
           <li class="path-item">
             <span class="path-index">#{i + 1}</span>
             <div class="path-body">
-              <!-- Row 1: clean horizontal chain of table nodes -->
+              <!-- Row 1: clean horizontal chain — table names + arrows only -->
               <div class="path-chain">
-                <span class="hop-badge">{hops} hop{hops !== 1 ? 's' : ''}</span>
                 {#each result.steps as step, stepIndex}
                   {#if stepIndex > 0}
                     <span class="path-arrow">→</span>
                   {/if}
-                  <span class="path-node">
-                    <a href="/tables/{step.table}" class="path-table-link"
-                      class:path-source={stepIndex === 0}
-                      class:path-target={stepIndex === result.steps.length - 1}
-                    >{step.table}</a>
-                    {#if tableDefs[step.table]}
-                      <span class="path-mod" data-module={canonicalModule(tableDefs[step.table].module)}
-                        title={tableDefs[step.table].description}>
-                        {canonicalModule(tableDefs[step.table].module)}
-                      </span>
-                    {/if}
-                  </span>
+                  <a href="/tables/{step.table}" class="path-table-link"
+                    class:path-source={stepIndex === 0}
+                    class:path-target={stepIndex === result.steps.length - 1}
+                  >{step.table}</a>
                 {/each}
+                <span class="hop-count">{hops} hop{hops !== 1 ? 's' : ''}</span>
               </div>
               <!-- Row 2: FK field labels, one per hop -->
               {#if result.steps.some((s) => s.via)}
                 <div class="path-fk-list">
-                  {#each result.steps.slice(1) as step, hopIndex}
+                  {#each result.steps.slice(1) as step}
                     {#if step.via}
-                      <span class="path-fk-label">
-                        <span class="path-fk-hop">hop {hopIndex + 1}</span>
-                        <span class="path-fk-field">{step.via}</span>
-                      </span>
+                      <span class="path-fk-field">{step.via}</span>
                     {/if}
                   {/each}
                 </div>
@@ -548,10 +535,10 @@
   }
 
   .path-item {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 9px;
-    padding: 12px 16px;
+    padding: 10px 14px;
     display: flex;
     align-items: flex-start;
     gap: 10px;
@@ -559,21 +546,10 @@
 
   .path-index {
     font-size: 11px;
-    color: rgba(232, 241, 255, 0.3);
-    min-width: 28px;
+    color: rgba(232, 241, 255, 0.22);
+    min-width: 24px;
     flex-shrink: 0;
     padding-top: 3px;
-  }
-
-  .hop-badge {
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 8px;
-    border-radius: 10px;
-    background: rgba(138, 213, 255, 0.1);
-    color: rgba(138, 213, 255, 0.7);
-    flex-shrink: 0;
-    white-space: nowrap;
   }
 
   /* Body holds both the chain row and the FK labels row */
@@ -582,96 +558,63 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
-  /* Row 1: hop badge + table nodes separated by arrows, wraps as needed */
+  /* Row 1: table names + arrows, no extra decorations */
   .path-chain {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .path-node {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
+    gap: 5px;
   }
 
   .path-arrow {
-    color: rgba(232, 241, 255, 0.25);
-    font-size: 13px;
-    flex-shrink: 0;
-  }
-
-  /* Row 2: one FK field label per hop, stacked below the chain */
-  .path-fk-list {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding-left: 2px;
-  }
-
-  .path-fk-label {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-  }
-
-  .path-fk-hop {
-    font-size: 9px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
     color: rgba(232, 241, 255, 0.2);
+    font-size: 12px;
     flex-shrink: 0;
-    min-width: 34px;
   }
 
-  .path-fk-field {
+  .hop-count {
     font-size: 10px;
-    color: rgba(232, 241, 255, 0.35);
-    font-family: var(--font-mono, monospace);
-    word-break: break-all;
+    color: rgba(232, 241, 255, 0.2);
+    margin-left: 4px;
+    flex-shrink: 0;
   }
 
   .path-table-link {
     font-family: var(--font-mono, monospace);
     font-size: 13px;
     font-weight: 600;
-    color: rgba(232, 241, 255, 0.75);
+    color: rgba(232, 241, 255, 0.7);
     text-decoration: none;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    transition: background 0.1s, color 0.1s;
+    transition: color 0.1s;
   }
 
   .path-table-link:hover {
-    background: rgba(255, 255, 255, 0.1);
     color: var(--text);
+    text-decoration: underline;
   }
 
-  .path-table-link.path-source {
-    border-color: rgba(138, 213, 255, 0.3);
-    color: #8ad5ff;
+  .path-table-link.path-source { color: #8ad5ff; }
+  .path-table-link.path-target { color: #72e9a3; }
+
+  /* Row 2: FK field labels, one per hop — very secondary */
+  .path-fk-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding-left: 1px;
+    border-left: 2px solid rgba(255, 255, 255, 0.05);
+    margin-left: 2px;
+    padding-left: 8px;
   }
 
-  .path-table-link.path-target {
-    border-color: rgba(114, 233, 163, 0.3);
-    color: #72e9a3;
-  }
-
-  .path-mod {
+  .path-fk-field {
     font-size: 10px;
-    font-weight: 600;
-    padding: 1px 5px;
-    border-radius: 4px;
-    background: var(--mod-clr-bg, rgba(138, 213, 255, 0.1));
-    color: var(--mod-clr, #c4e7ff);
+    color: rgba(232, 241, 255, 0.28);
+    font-family: var(--font-mono, monospace);
+    word-break: break-all;
   }
 
   @media (max-width: 900px) {

@@ -205,18 +205,21 @@
         {@const mx = (p1.x + p2.x) / 2}
         {@const my = (p1.y + p2.y) / 2}
         {@const label = hoveredEdge.fields[0]}
-        {@const labelWidth = label.length * 7.5 + 20}
+        {@const labelWidth = label.length * 8.5 + 22}
         {@const padding = 8}
         {@const rx = Math.max(padding, Math.min(canvasWidth - labelWidth - padding, mx - labelWidth / 2))}
+        {@const ry = my - 12}
+        {@const rh = 24}
         <rect
-          x={rx} y={my - 13}
-          width={labelWidth} height={22} rx="4"
+          x={rx} y={ry}
+          width={labelWidth} height={rh} rx="4"
           fill="rgba(8,14,26,0.95)" stroke="rgba(138,213,255,0.25)" stroke-width="1"
           pointer-events="none"
         />
         <text
-          x={rx + labelWidth / 2} y={my + 5}
+          x={rx + labelWidth / 2} y={ry + rh / 2}
           text-anchor="middle"
+          dominant-baseline="central"
           fill="rgba(232,241,255,0.9)"
           font-size="10.5"
           font-family="'Cascadia Code', 'Fira Code', monospace"
