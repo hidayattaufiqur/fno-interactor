@@ -1,5 +1,5 @@
 <script>
-  import { flows, modules } from '$lib/data/flows'
+  import { flows, modules, tableDefs } from '$lib/data/flows'
 
   $: grouped = modules
     .filter((m) => m !== 'All')
@@ -8,6 +8,9 @@
       flows: flows.filter((f) => f.module === m),
     }))
     .filter((g) => g.flows.length > 0)
+
+  $: totalStages = flows.reduce((n, f) => n + f.stages.length, 0)
+  $: totalTables = Object.keys(tableDefs).length
 </script>
 
 <svelte:head>
@@ -24,11 +27,30 @@
   <a href="/tables" class="cta-button">⬡ Table Reference →</a>
 </header>
 
+<div class="home-stats">
+  <div class="stat-item">
+    <span class="stat-num">{flows.length}</span>
+    <span class="stat-label">Flows</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">{totalStages}</span>
+    <span class="stat-label">Stages</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">{totalTables}</span>
+    <span class="stat-label">Tables documented</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">{grouped.length}</span>
+    <span class="stat-label">Modules</span>
+  </div>
+</div>
+
 <div class="module-grid">
   {#each grouped as group}
-    <div class="module-card">
+    <div class="module-card" data-module={group.module}>
       <div class="module-card-header">
-        <span class="pill">{group.module}</span>
+        <span class="module-badge" data-module={group.module}>{group.module}</span>
       </div>
       {#each group.flows as flow}
         <a href="/flow/{flow.id}/{flow.stages[0].id}" class="flow-link">
