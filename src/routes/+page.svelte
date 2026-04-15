@@ -24,7 +24,10 @@
     Understand business processes, trace table relations, and navigate technical customisations —
     without diving into the AOT blind.
   </p>
-  <a href="/tables" class="cta-button">⬡ Table Reference →</a>
+  <div class="hero-ctas">
+    <a href="/tables" class="cta-button">⬡ Table Reference →</a>
+    <a href="/find" class="cta-button cta-secondary">⇢ Find Table Path →</a>
+  </div>
 </header>
 
 <div class="home-stats">

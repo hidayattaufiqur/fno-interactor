@@ -714,10 +714,20 @@ a.node.active {
   width: fit-content;
   transition: all 0.2s;
 }
+.cta-button.cta-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(232, 241, 255, 0.7);
+}
 .cta-button:hover {
   border-color: #8ad5ff;
   color: #e8f1ff;
   transform: translateY(-1px);
+}
+.hero-ctas {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 .module-grid {
   display: grid;
