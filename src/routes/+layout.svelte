@@ -1,11 +1,23 @@
 <script>
   import '../app.css'
+  import { onMount } from 'svelte'
   import { page } from '$app/stores'
   import { afterNavigate } from '$app/navigation'
   import { flows, tableDefs } from '$lib/data/flows'
 
   let search = ''
   let sidebarOpen = false
+  let isLight = false
+
+  onMount(() => {
+    isLight = document.documentElement.classList.contains('light')
+  })
+
+  function toggleTheme() {
+    isLight = !isLight
+    document.documentElement.classList.toggle('light', isLight)
+    localStorage.setItem('theme', isLight ? 'light' : 'dark')
+  }
 
   // Close sidebar on any navigation (back button, programmatic goto, etc.)
   afterNavigate(() => { sidebarOpen = false })
@@ -122,6 +134,14 @@
       <span class="nav-link-icon">⇢</span>
       <span>Find Table Path</span>
     </a>
+
+    <button class="theme-toggle" on:click={toggleTheme} aria-label="Toggle theme">
+      {#if isLight}
+        <span class="theme-icon">☾</span> Dark
+      {:else}
+        <span class="theme-icon">☀</span> Light
+      {/if}
+    </button>
   </aside>
 
   <main class="content">
@@ -134,8 +154,36 @@
     margin-left: auto;
     font-size: 11px;
     background: rgba(255, 255, 255, 0.07);
-    color: rgba(232, 241, 255, 0.55);
+    color: var(--clr-text-muted);
     padding: 1px 7px;
     border-radius: 10px;
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: auto;
+    padding: 7px 10px;
+    background: transparent;
+    border: 1px solid var(--clr-border-subtle);
+    border-radius: 5px;
+    color: var(--clr-text-muted);
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    width: 100%;
+    text-align: left;
+  }
+
+  .theme-toggle:hover {
+    border-color: var(--clr-border);
+    color: var(--clr-text);
+  }
+
+  .theme-icon {
+    font-size: 13px;
+    line-height: 1;
   }
 </style>

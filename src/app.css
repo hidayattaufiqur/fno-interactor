@@ -1,29 +1,58 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap');
+@font-face {
+  font-family: '0xProto';
+  src:
+    url('/fonts/0xProto.woff2') format('woff2'),
+    url('/fonts/0xProto.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
-  font-family: 'Space Grotesk', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: '0xProto', ui-monospace, 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   line-height: 1.5;
   font-weight: 400;
-  color: #111;
-  background: #111;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
 
-  /* ── Design tokens ── */
-  --clr-text: #e0e0e0;
-  --clr-text-muted: #888;
-  --clr-text-faint: #555;
+  /* ── Dark mode defaults ── */
+  --clr-bg: #0d1117;
+  --clr-bg-nav: #010409;
+  --clr-text: #c0c0c0;
+  --clr-text-muted: #7d8590;
+  --clr-text-faint: #484f58;
   --clr-blue: #5a94e8;
   --clr-blue-strong: #7aacf0;
   --clr-green: #4ec994;
-  --clr-surface: #161616;
-  --clr-surface-raised: #1c1c1c;
-  --clr-border-subtle: #1e1e1e;
-  --clr-border: #2a2a2a;
+  --clr-surface: #161b22;
+  --clr-surface-raised: #1c2128;
+  --clr-border-subtle: #21262d;
+  --clr-border: #30363d;
   --clr-border-accent: rgba(90, 148, 232, 0.45);
+  --dot-color: #1c2128;
   --r-sm: 4px;
   --r-md: 6px;
   --r-lg: 8px;
+}
+
+/* ── Light mode ── */
+html.light {
+  color-scheme: light;
+  --clr-bg: #f6f8fa;
+  --clr-bg-nav: #ffffff;
+  --clr-text: #1c2128;
+  --clr-text-muted: #656d76;
+  --clr-text-faint: #9198a1;
+  --clr-blue: #0969da;
+  --clr-blue-strong: #0550ae;
+  --clr-green: #1a7f37;
+  --clr-surface: #ffffff;
+  --clr-surface-raised: #f6f8fa;
+  --clr-border-subtle: #eaeef2;
+  --clr-border: #d0d7de;
+  --clr-border-accent: rgba(9, 105, 218, 0.4);
+  --dot-color: rgba(175, 184, 193, 0.4);
 }
 
 *,
@@ -34,15 +63,29 @@
 
 body {
   margin: 0;
-  background: #111;
-  color: #e0e0e0;
+  background: var(--clr-bg);
+  color: var(--clr-text);
+}
+
+/* Dot grid background — matches hidayattaufiqur.dev aesthetic */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--clr-bg) 22px, transparent 1%) 50%,
+    linear-gradient(var(--clr-bg) 22px, transparent 1%) 50%,
+    var(--dot-color);
+  background-size: 24px 24px;
 }
 
 a {
-  color: #9fd2ff;
+  color: var(--clr-blue);
 }
 a:hover {
-  color: #d4ecff;
+  color: var(--clr-blue-strong);
 }
 
 #app {
@@ -56,8 +99,8 @@ a:hover {
 }
 
 .nav {
-  background: #0c0c0c;
-  border-right: 1px solid #1e1e1e;
+  background: var(--clr-bg-nav);
+  border-right: 1px solid var(--clr-border-subtle);
   padding: 28px 22px 24px;
   display: flex;
   flex-direction: column;
@@ -150,18 +193,18 @@ label {
 }
 
 select {
-  background: #0d1826;
-  color: #e8f1ff;
-  color-scheme: dark;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  color-scheme: inherit;
+  border: 1px solid var(--clr-border);
   border-radius: 10px;
   padding: 8px 10px;
   min-width: 150px;
 }
 
 option {
-  background: #0d1826;
-  color: #e8f1ff;
+  background: var(--clr-surface);
+  color: var(--clr-text);
 }
 
 .toggle {
@@ -1445,3 +1488,125 @@ select, .search input, .view-toggle, .nav-search input,
 /* 4px — tags, badges, filter pills */
 .mod-pill, .cat-pill, .table-chip, .rel-field,
 .flow-list a, .flow-link, .match-reason { border-radius: 4px; }
+
+/* ── Light mode surface overrides ───────────────────────────────────────────
+   rgba(255,255,255,X) overlays become invisible on a light background.
+   Replace key surfaces with solid CSS variables for light mode.
+   ────────────────────────────────────────────────────────────────────────── */
+
+html.light body {
+  color: var(--clr-text);
+}
+
+html.light .nav {
+  box-shadow: 1px 0 0 var(--clr-border-subtle);
+}
+
+html.light .mobile-bar {
+  background: rgba(246, 248, 250, 0.95);
+  border-bottom-color: var(--clr-border);
+}
+
+html.light .card,
+html.light .module-card,
+html.light .stage-detail,
+html.light .flow-map,
+html.light .node,
+html.light a.node,
+html.light .rel-node,
+html.light .rel-edge,
+html.light .pipeline-node,
+html.light .table-result-group,
+html.light .table-browse-item,
+html.light .inline-rel,
+html.light .rel-card,
+html.light .aside-card,
+html.light .match {
+  background: var(--clr-surface);
+  border-color: var(--clr-border);
+}
+
+html.light .flow-list a:hover,
+html.light .flow-link:hover,
+html.light .table-usage:hover,
+html.light .table-chip:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+html.light .flow-list a.selected {
+  background: var(--mod-clr-bg, rgba(9, 105, 218, 0.08));
+  border-color: var(--mod-clr-border, rgba(9, 105, 218, 0.3));
+}
+
+html.light .nav-link {
+  border-color: var(--clr-border);
+  color: var(--clr-text);
+}
+
+html.light .nav-link:hover {
+  border-color: var(--clr-border-accent);
+}
+
+html.light .nav-link.selected {
+  border-color: var(--clr-border-accent);
+  background: var(--mod-clr-bg, rgba(9, 105, 218, 0.08));
+}
+
+html.light select,
+html.light .nav-search input,
+html.light .search input,
+html.light .method-search {
+  background: var(--clr-surface);
+  color: var(--clr-text);
+  border-color: var(--clr-border);
+}
+
+html.light .lede,
+html.light .mini,
+html.light .nav-label,
+html.light .eyebrow,
+html.light .card-label,
+html.light .section-label,
+html.light .rel-direction-label,
+html.light .section-heading,
+html.light .flow-list a small,
+html.light .flow-link-summary,
+html.light .step-num,
+html.light .pipeline-arrow {
+  color: var(--clr-text-muted);
+}
+
+html.light .field-table th {
+  color: var(--clr-text-muted);
+  border-bottom-color: var(--clr-border);
+}
+
+html.light .field-table td {
+  color: var(--clr-text);
+  border-bottom-color: var(--clr-border-subtle);
+}
+
+html.light .field-table-wrap {
+  border-color: var(--clr-border);
+}
+
+html.light .rel-fields,
+html.light .table-chip,
+html.light .rel-field {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--clr-border);
+  color: var(--clr-text-muted);
+}
+
+html.light .home-stats {
+  border-bottom-color: var(--clr-border);
+}
+
+html.light .stat-label {
+  color: var(--clr-text-faint);
+}
+
+html.light .stage-pipeline {
+  background: var(--clr-surface-raised);
+  border-color: var(--clr-border);
+}
