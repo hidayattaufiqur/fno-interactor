@@ -138,7 +138,7 @@
 </script>
 
 {#if satellites.length === 0}
-  <p class="mini" style="padding: 6px 0; color: rgba(232,241,255,0.4);">
+  <p class="mini" style="padding: 6px 0; color: var(--clr-text-faint);">
     No relation data mapped yet for this table.
   </p>
 {:else}
@@ -220,7 +220,7 @@
           x={rx + labelWidth / 2} y={ry + rh / 2}
           text-anchor="middle"
           dominant-baseline="central"
-          fill="rgba(232,241,255,0.9)"
+          fill="var(--clr-text)"
           font-size="10.5"
           font-family="'Cascadia Code', 'Fira Code', monospace"
           pointer-events="none">{label}</text>
@@ -279,12 +279,12 @@
       <!-- ── Legend ── -->
       <g transform="translate(14, {canvasHeight - 80})">
         <line x1="0" y1="7" x2="24" y2="7" stroke="rgba(138,213,255,0.55)" stroke-width="1.5" marker-end="url(#arr-b)" />
-        <text x="30" y="11" fill="rgba(232,241,255,0.38)" font-size="10" font-family="sans-serif">outgoing FK</text>
+        <text x="30" y="11" fill="var(--clr-text-faint)" font-size="10" font-family="sans-serif">outgoing FK</text>
         <line x1="0" y1="25" x2="24" y2="25" stroke="rgba(114,233,163,0.55)" stroke-width="1.5" marker-end="url(#arr-g)" />
-        <text x="30" y="29" fill="rgba(232,241,255,0.38)" font-size="10" font-family="sans-serif">incoming FK</text>
+        <text x="30" y="29" fill="var(--clr-text-faint)" font-size="10" font-family="sans-serif">incoming FK</text>
         <line x1="0" y1="43" x2="24" y2="43" stroke="rgba(138,213,255,0.3)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-b)" />
-        <text x="30" y="47" fill="rgba(232,241,255,0.28)" font-size="10" font-family="sans-serif">schema FK (auto-detected)</text>
-        <text x="0" y="66" fill="rgba(232,241,255,0.25)" font-size="9.5" font-family="sans-serif">Hover edge for FK fields · click node to navigate</text>
+        <text x="30" y="47" fill="var(--clr-text-faint)" font-size="10" font-family="sans-serif">schema FK (auto-detected)</text>
+        <text x="0" y="66" fill="var(--clr-text-faint)" font-size="9.5" font-family="sans-serif">Hover edge for FK fields · click node to navigate</text>
       </g>
     </svg>
   </div>

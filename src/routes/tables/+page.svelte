@@ -115,7 +115,7 @@
                   class="pill"
                   data-module={mod}
                   title={tableDef.module}
-                  style="background: var(--mod-clr-bg, rgba(138,213,255,0.15)); color: var(--mod-clr, #c4e7ff); border: 1px solid var(--mod-clr-border, transparent);"
+                  style="background: var(--mod-clr-bg, var(--clr-border)); color: var(--mod-clr, var(--clr-blue-strong)); border: 1px solid var(--mod-clr-border, transparent);"
                 >{mod}</span>
               {/if}
               <span class="mini">{tableDef.description}</span>

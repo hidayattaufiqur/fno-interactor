@@ -277,7 +277,7 @@
   .schema-count {
     font-size: 11px;
     font-weight: 400;
-    color: rgba(232, 241, 255, 0.35);
+    color: var(--clr-text-faint);
     margin-left: 8px;
     vertical-align: middle;
   }
@@ -293,7 +293,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    color: rgba(232, 241, 255, 0.3);
+    color: var(--clr-text-faint);
     margin-bottom: 8px;
   }
 
@@ -307,7 +307,7 @@
   }
   .step-nav-btn {
     font-size: 12px;
-    color: rgba(232, 241, 255, 0.6);
+    color: var(--clr-text-muted);
     text-decoration: none;
     padding: 6px 10px;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -315,7 +315,7 @@
     transition: all 0.15s;
   }
   .step-nav-btn:hover {
-    border-color: rgba(138, 213, 255, 0.3);
-    color: #e8f1ff;
+    border-color: var(--clr-border-accent);
+    color: var(--clr-text);
   }
 </style>

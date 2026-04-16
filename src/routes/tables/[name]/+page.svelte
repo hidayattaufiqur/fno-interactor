@@ -336,7 +336,7 @@
 
 <style>
   .schema-section-heading {
-    color: rgba(232, 241, 255, 0.45);
+    color: var(--clr-text-muted);
   }
 
   .schema-badge {
@@ -346,14 +346,14 @@
     border-radius: 4px;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    color: rgba(232, 241, 255, 0.4);
+    color: var(--clr-text-faint);
     margin-left: 8px;
     vertical-align: middle;
     letter-spacing: 0.3px;
   }
 
   .schema-note {
-    color: rgba(232, 241, 255, 0.35);
+    color: var(--clr-text-faint);
     margin-bottom: 12px;
   }
 
@@ -378,7 +378,7 @@
   .section-docs-link:hover { opacity: 1; }
 
   .methods-note {
-    color: rgba(232, 241, 255, 0.4);
+    color: var(--clr-text-faint);
     margin-bottom: 14px;
     line-height: 1.6;
   }
@@ -403,7 +403,7 @@
     outline: none;
     transition: border-color 0.15s;
   }
-  .method-search::placeholder { color: rgba(232, 241, 255, 0.3); }
+  .method-search::placeholder { color: var(--clr-text-faint); }
   .method-search:focus { border-color: rgba(79, 195, 247, 0.5); }
 
   .method-cat-pills {
@@ -417,12 +417,12 @@
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: transparent;
-    color: rgba(232, 241, 255, 0.55);
+    color: var(--clr-text-muted);
     font-size: 12px;
     cursor: pointer;
     transition: all 0.15s;
   }
-  .cat-pill:hover { background: rgba(255,255,255,0.07); color: rgba(232,241,255,0.85); }
+  .cat-pill:hover { background: rgba(255,255,255,0.07); color: var(--clr-text); }
   .cat-pill.active { background: rgba(79,195,247,0.15); border-color: rgba(79,195,247,0.4); color: #4fc3f7; }
 
   .common-toggle {
@@ -430,7 +430,7 @@
     align-items: center;
     gap: 6px;
     font-size: 12px;
-    color: rgba(232, 241, 255, 0.55);
+    color: var(--clr-text-muted);
     cursor: pointer;
     user-select: none;
     margin-left: auto;
@@ -452,20 +452,20 @@
   .method-sig-cell code {
     font-size: 11.5px;
     font-family: 'Fira Code', 'Cascadia Code', monospace;
-    color: rgba(232, 241, 255, 0.5);
+    color: var(--clr-text-muted);
     white-space: nowrap;
   }
 
   .method-desc-cell {
     font-size: 12.5px;
-    color: rgba(232, 241, 255, 0.7);
+    color: var(--clr-text);
     line-height: 1.5;
     min-width: 280px;
   }
 
   /* Category badge colours */
   .method-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.3px; white-space: nowrap; }
-  .cat-badge.cat-crud       { background: rgba(76,175,80,0.12);  border: 1px solid rgba(76,175,80,0.3);  color: #81c784; }
+  .cat-badge.cat-crud       { background: rgba(76,175,80,0.12);  border: 1px solid rgba(76,175,80,0.3);  color: var(--clr-green); }
   .cat-badge.cat-validation { background: rgba(255,152,0,0.12);  border: 1px solid rgba(255,152,0,0.3);  color: #ffb74d; }
   .cat-badge.cat-init       { background: rgba(33,150,243,0.12); border: 1px solid rgba(33,150,243,0.3); color: #64b5f6; }
   .cat-badge.cat-events     { background: rgba(156,39,176,0.12); border: 1px solid rgba(156,39,176,0.3); color: #ce93d8; }

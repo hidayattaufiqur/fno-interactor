@@ -24,7 +24,7 @@
   --clr-text-faint: #484f58;
   --clr-blue: #5a94e8;
   --clr-blue-strong: #7aacf0;
-  --clr-green: #4ec994;
+  --clr-green: var(--clr-green);
   --clr-surface: #161b22;
   --clr-surface-raised: #1c2128;
   --clr-border-subtle: #21262d;
@@ -135,7 +135,7 @@ a:hover {
   text-transform: uppercase;
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: #7ba6ff;
+  color: var(--clr-blue);
   margin: 0;
 }
 
@@ -224,7 +224,7 @@ option {
 .view-toggle button {
   background: rgba(255, 255, 255, 0.02);
   border: none;
-  color: #e8f1ff;
+  color: var(--clr-text);
   padding: 8px 12px;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -248,7 +248,7 @@ option {
 
 .search input {
   background: rgba(255, 255, 255, 0.06);
-  color: #e8f1ff;
+  color: var(--clr-text);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   padding: 8px 10px;
@@ -265,12 +265,12 @@ option {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   padding: 8px 10px;
-  color: #e8f1ff;
+  color: var(--clr-text);
   cursor: pointer;
 }
 
 .match:hover {
-  border-color: rgba(138, 213, 255, 0.5);
+  border-color: var(--clr-border-accent);
 }
 
 .match-title {
@@ -315,7 +315,7 @@ option {
   border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 10px;
   border-radius: 10px;
-  color: #e8f1ff;
+  color: var(--clr-text);
   font-weight: 600;
 }
 
@@ -341,7 +341,7 @@ option {
 }
 
 .rel-arrow {
-  color: #9fd2ff;
+  color: var(--clr-blue);
 }
 
 .node-wrapper {
@@ -353,7 +353,7 @@ option {
 .node {
   min-width: 200px;
   background: rgba(255, 255, 255, 0.03);
-  color: #e8f1ff;
+  color: var(--clr-text);
   border: 1px solid rgba(255, 255, 255, 0.05);
   padding: 12px;
   border-radius: 14px;
@@ -434,7 +434,7 @@ option {
   padding: 4px 10px;
   border-radius: 4px;
   background: rgba(78, 201, 148, 0.1);
-  color: #a8e6ce;
+  color: var(--clr-green);
   border: 1px solid rgba(78, 201, 148, 0.25);
   font-size: 12px;
 }
@@ -628,7 +628,7 @@ ul {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--mod-clr, rgba(159, 210, 255, 0.5));
+  background: var(--mod-clr, var(--clr-border-accent));
   flex-shrink: 0;
   margin-top: 5px;
 }
@@ -660,7 +660,7 @@ ul {
   color: var(--clr-text);
 }
 .flow-list a.selected {
-  border-color: var(--mod-clr-border, rgba(138, 213, 255, 0.4));
+  border-color: var(--mod-clr-border, var(--clr-border-accent));
   background: var(--mod-clr-bg, rgba(138, 213, 255, 0.08));
   color: var(--clr-text);
 }
@@ -671,7 +671,7 @@ ul {
   color: inherit;
 }
 .brand:hover .dot {
-  box-shadow: 0 0 32px rgba(138, 213, 255, 0.8);
+  box-shadow: 0 0 32px var(--clr-border-accent);
 }
 
 /* Table Reference nav link */
@@ -690,8 +690,8 @@ ul {
   margin-top: auto;
 }
 .nav-link:hover {
-  border-color: rgba(159, 210, 255, 0.5);
-  color: #e8f1ff;
+  border-color: var(--clr-border-accent);
+  color: var(--clr-text);
 }
 .nav-link.selected {
   border-color: var(--clr-blue);
@@ -709,7 +709,7 @@ a.node {
   text-decoration: none;
   min-width: 200px;
   background: rgba(255, 255, 255, 0.03);
-  color: #e8f1ff;
+  color: var(--clr-text);
   border: 1px solid rgba(255, 255, 255, 0.05);
   padding: 12px;
   border-radius: 14px;
@@ -790,7 +790,7 @@ a.node.active {
 .flow-link-title {
   font-weight: 500;
   font-size: 14px;
-  color: #e8f1ff;
+  color: var(--clr-text);
 }
 .flow-link-summary {
   font-size: 12px;
@@ -812,7 +812,7 @@ a.node.active {
   text-decoration: none;
 }
 .breadcrumb a:hover {
-  color: #9fd2ff;
+  color: var(--clr-blue);
 }
 
 /* ── Tables index page ── */
@@ -852,11 +852,11 @@ a.node.active {
   font-weight: 700;
   font-size: 15px;
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-  color: #9fd2ff;
+  color: var(--clr-blue);
   text-decoration: none;
 }
 .table-name:hover {
-  color: #d4ecff;
+  color: var(--clr-blue-strong);
 }
 .table-usages {
   display: flex;
@@ -876,7 +876,7 @@ a.node.active {
 }
 .table-usage:hover {
   background: rgba(255, 255, 255, 0.05);
-  color: #e8f1ff;
+  color: var(--clr-text);
 }
 .table-browse-grid {
   display: grid;
@@ -895,13 +895,13 @@ a.node.active {
   transition: border-color 0.15s;
 }
 .table-browse-item:hover {
-  border-color: rgba(159, 210, 255, 0.4);
+  border-color: var(--clr-border-accent);
 }
 .table-name-sm {
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   font-size: 13px;
   font-weight: 600;
-  color: #9fd2ff;
+  color: var(--clr-blue);
 }
 .usage-count {
   color: var(--clr-text-muted);
@@ -919,7 +919,7 @@ a.node.active {
   font-weight: 700;
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   margin: 4px 0 0;
-  color: #9fd2ff;
+  color: var(--clr-blue);
   letter-spacing: -0.3px;
 }
 .docs-link {
@@ -928,7 +928,7 @@ a.node.active {
   width: fit-content;
 }
 .docs-link:hover {
-  color: #9fd2ff;
+  color: var(--clr-blue);
 }
 .detail-section {
   display: flex;
@@ -968,7 +968,7 @@ a.node.active {
 .field-name {
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   font-weight: 600;
-  color: #9fd2ff !important;
+  color: var(--clr-blue) !important;
   white-space: nowrap;
 }
 .field-type {
@@ -978,14 +978,14 @@ a.node.active {
   white-space: nowrap;
 }
 .field-fk a {
-  color: #72e9a3;
+  color: var(--clr-green);
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   font-size: 13px;
   text-decoration: none;
   white-space: nowrap;
 }
 .field-fk a:hover {
-  color: #b6f5d5;
+  color: var(--clr-green);
 }
 .no-def-notice {
   margin-bottom: 24px;
@@ -1016,15 +1016,15 @@ a.node.active {
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   font-weight: 600;
   text-decoration: none;
-  color: #9fd2ff;
+  color: var(--clr-blue);
 }
 .rel-from:hover,
 .rel-to:hover {
-  color: #d4ecff;
+  color: var(--clr-blue-strong);
 }
 .rel-from.self,
 .rel-to.self {
-  color: #72e9a3;
+  color: var(--clr-green);
 }
 .rel-fields {
   font-size: 11px;
@@ -1074,7 +1074,7 @@ a.node.active {
 
 /* ── Module card colored top border (home page) ── */
 .module-card[data-module] {
-  border-top: 2px solid var(--mod-clr, rgba(255,255,255,0.1));
+  border-top: 2px solid var(--mod-clr, var(--clr-border));
 }
 
 /* ── Sidebar nav search ── */
@@ -1317,7 +1317,7 @@ a.node.active {
 .rel-card {
   background: var(--clr-surface);
   border: 1px solid var(--clr-border-subtle);
-  border-left: 2px solid rgba(138, 213, 255, 0.35);
+  border-left: 2px solid var(--clr-border-accent);
   border-radius: 10px;
   padding: 10px 14px;
   display: flex;
@@ -1338,7 +1338,7 @@ a.node.active {
   font-size: 14px;
 }
 .rel-table:hover {
-  color: #d4ecff;
+  color: var(--clr-blue-strong);
 }
 .rel-dir {
   color: var(--clr-text-faint);
@@ -1353,7 +1353,7 @@ a.node.active {
   font-size: 11px;
   font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
   background: rgba(138, 213, 255, 0.07);
-  border: 1px solid rgba(138, 213, 255, 0.18);
+  border: 1px solid var(--clr-border);
   color: var(--clr-text);
   padding: 2px 7px;
   border-radius: 5px;
@@ -1383,9 +1383,9 @@ a.node.active {
   transition: border-color 0.15s, background 0.15s;
 }
 .table-chip:hover {
-  border-color: rgba(138, 213, 255, 0.4);
+  border-color: var(--clr-border-accent);
   background: rgba(138, 213, 255, 0.07);
-  color: #d4ecff;
+  color: var(--clr-blue-strong);
 }
 
 /* ── Module filter pills (tables index) ── */
@@ -1408,12 +1408,12 @@ a.node.active {
 }
 .mod-pill:hover {
   background: rgba(138, 213, 255, 0.08);
-  border-color: rgba(138, 213, 255, 0.25);
+  border-color: var(--clr-border);
   color: var(--clr-text);
 }
 .mod-pill.active {
-  background: var(--mod-clr-bg, rgba(138, 213, 255, 0.1));
-  border-color: var(--mod-clr-border, rgba(138, 213, 255, 0.35));
+  background: var(--mod-clr-bg, var(--clr-border));
+  border-color: var(--mod-clr-border, var(--clr-border-accent));
   color: var(--mod-clr, var(--clr-blue));
 }
 
