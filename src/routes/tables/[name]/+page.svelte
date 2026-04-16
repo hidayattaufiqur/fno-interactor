@@ -127,6 +127,83 @@
   </div>
 {/if}
 
+<section class="detail-section">
+  <div class="section-heading">
+    Table Methods ({filteredMethods.length})
+    <a
+      href="https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/dev-ref/system-tables#common"
+      target="_blank"
+      rel="noreferrer"
+      class="section-docs-link"
+    >Common docs ↗</a>
+  </div>
+  <p class="mini methods-note">
+    Inherited by every D365FO table from <code>Common</code>/<code>xRecord</code>. Static methods
+    (<code>find</code>, <code>exist</code>, <code>findRecId</code>) are a near-universal convention
+    on virtually every table. Toggle <em>Common only</em> off to see all 55 methods.
+  </p>
+
+  <div class="method-controls">
+    <input
+      class="method-search"
+      type="text"
+      placeholder="Search methods…"
+      bind:value={methodSearch}
+    />
+    <div class="method-cat-pills">
+      {#each categoryKeys as cat}
+        <button
+          class="cat-pill"
+          class:active={methodCategory === cat}
+          on:click={() => (methodCategory = cat)}
+        >
+          {cat === 'all' ? 'All' : METHOD_CATEGORIES[cat].label}
+        </button>
+      {/each}
+    </div>
+    <label class="common-toggle">
+      <input type="checkbox" bind:checked={showCommonOnly} />
+      Common only
+    </label>
+  </div>
+
+  {#if filteredMethods.length === 0}
+    <p class="mini" style="opacity:0.4;margin-top:12px">No methods match your filters.</p>
+  {:else}
+    <div class="field-table-wrap">
+      <table class="field-table methods-table">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Category</th>
+            <th>Signature</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each filteredMethods as method (method.name)}
+            <tr>
+              <td class="field-name method-name-cell">
+                {method.name}
+                {#if method.overridable}
+                  <span class="overridable-dot" title="Overridable in extension class">↑</span>
+                {/if}
+              </td>
+              <td>
+                <span class="method-badge cat-badge cat-{method.category}">
+                  {METHOD_CATEGORIES[method.category].label}
+                </span>
+              </td>
+              <td class="method-sig-cell"><code>{method.signature}</code></td>
+              <td class="method-desc-cell">{method.description}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+  {/if}
+</section>
+
 {#if allEdges.length > 0}
   <section class="detail-section">
     <div class="section-heading">
@@ -257,78 +334,6 @@
   </section>
 {/if}
 
-<section class="detail-section methods-section">
-  <div class="section-heading">
-    Table Methods
-    <a
-      href="https://learn.microsoft.com/dynamics365/fin-ops-core/dev-itpro/dev-ref/system-tables#common"
-      target="_blank"
-      rel="noreferrer"
-      class="section-docs-link"
-    >Common docs ↗</a>
-  </div>
-  <p class="mini methods-note">
-    Every D365FO table inherits these methods from the <code>Common</code> base table.
-    Static methods (<code>find</code>, <code>exist</code>, <code>findRecId</code>) are a
-    near-universal convention — not on Common itself, but present on almost every table.
-    Methods marked <span class="method-badge overridable-inline">overridable</span> are the ones
-    you'll typically override in an extension class.
-  </p>
-
-  <div class="method-controls">
-    <input
-      class="method-search"
-      type="text"
-      placeholder="Search methods…"
-      bind:value={methodSearch}
-    />
-
-    <div class="method-cat-pills">
-      {#each categoryKeys as cat}
-        <button
-          class="cat-pill"
-          class:active={methodCategory === cat}
-          on:click={() => (methodCategory = cat)}
-        >
-          {cat === 'all' ? 'All' : METHOD_CATEGORIES[cat].label}
-        </button>
-      {/each}
-    </div>
-
-    <label class="common-toggle">
-      <input type="checkbox" bind:checked={showCommonOnly} />
-      Common only
-    </label>
-  </div>
-
-  {#if filteredMethods.length === 0}
-    <p class="mini" style="opacity:0.4;margin-top:12px">No methods match your filters.</p>
-  {:else}
-    <div class="method-count mini" style="opacity:0.45;margin-bottom:8px">
-      Showing {filteredMethods.length} method{filteredMethods.length !== 1 ? 's' : ''}
-    </div>
-    <div class="method-grid">
-      {#each filteredMethods as method (method.name)}
-        <div class="method-card" data-category={method.category}>
-          <div class="method-header">
-            <code class="method-name">{method.name}</code>
-            <div class="method-badges">
-              {#if method.overridable}
-                <span class="method-badge overridable">overridable</span>
-              {/if}
-              <span class="method-badge cat-badge cat-{method.category}">
-                {METHOD_CATEGORIES[method.category].label}
-              </span>
-            </div>
-          </div>
-          <code class="method-sig">{method.signature}</code>
-          <p class="method-desc">{method.description}</p>
-        </div>
-      {/each}
-    </div>
-  {/if}
-</section>
-
 <style>
   .schema-section-heading {
     color: rgba(232, 241, 255, 0.45);
@@ -361,9 +366,6 @@
   }
 
   /* ── Methods section ──────────────────────────────────────────────────────── */
-  .methods-section {
-    container-type: inline-size;
-  }
 
   .section-docs-link {
     font-size: 11px;
@@ -373,39 +375,26 @@
     opacity: 0.7;
     text-decoration: none;
   }
-  .section-docs-link:hover {
-    opacity: 1;
-  }
+  .section-docs-link:hover { opacity: 1; }
 
   .methods-note {
     color: rgba(232, 241, 255, 0.4);
-    margin-bottom: 16px;
+    margin-bottom: 14px;
     line-height: 1.6;
   }
 
-  .overridable-inline {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 600;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: rgba(124, 77, 255, 0.15);
-    border: 1px solid rgba(124, 77, 255, 0.3);
-    color: rgb(180, 140, 255);
-    vertical-align: middle;
-  }
-
+  /* Controls row */
   .method-controls {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 10px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
 
   .method-search {
-    flex: 0 0 220px;
-    padding: 7px 12px;
+    flex: 0 0 200px;
+    padding: 6px 12px;
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.06);
@@ -414,12 +403,8 @@
     outline: none;
     transition: border-color 0.15s;
   }
-  .method-search::placeholder {
-    color: rgba(232, 241, 255, 0.3);
-  }
-  .method-search:focus {
-    border-color: rgba(79, 195, 247, 0.5);
-  }
+  .method-search::placeholder { color: rgba(232, 241, 255, 0.3); }
+  .method-search:focus { border-color: rgba(79, 195, 247, 0.5); }
 
   .method-cat-pills {
     display: flex;
@@ -437,15 +422,8 @@
     cursor: pointer;
     transition: all 0.15s;
   }
-  .cat-pill:hover {
-    background: rgba(255, 255, 255, 0.07);
-    color: rgba(232, 241, 255, 0.85);
-  }
-  .cat-pill.active {
-    background: rgba(79, 195, 247, 0.15);
-    border-color: rgba(79, 195, 247, 0.4);
-    color: #4fc3f7;
-  }
+  .cat-pill:hover { background: rgba(255,255,255,0.07); color: rgba(232,241,255,0.85); }
+  .cat-pill.active { background: rgba(79,195,247,0.15); border-color: rgba(79,195,247,0.4); color: #4fc3f7; }
 
   .common-toggle {
     display: flex;
@@ -457,95 +435,41 @@
     user-select: none;
     margin-left: auto;
   }
-  .common-toggle input {
-    cursor: pointer;
-    accent-color: #4fc3f7;
+  .common-toggle input { cursor: pointer; accent-color: #4fc3f7; }
+
+  /* Table tweaks for methods */
+  .methods-table .method-name-cell {
+    white-space: nowrap;
   }
 
-  .method-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-    gap: 10px;
-  }
-
-  .method-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .method-card:hover {
-    background: rgba(255, 255, 255, 0.07);
-    border-color: rgba(255, 255, 255, 0.14);
-  }
-
-  .method-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .method-name {
-    font-size: 14px;
-    font-weight: 700;
-    font-family: 'Fira Code', 'Cascadia Code', monospace;
-    color: rgba(232, 241, 255, 0.95);
-    letter-spacing: -0.3px;
-  }
-
-  .method-badges {
-    display: flex;
-    gap: 5px;
-    margin-left: auto;
-    flex-shrink: 0;
-  }
-
-  .method-badge {
+  .overridable-dot {
     font-size: 10px;
-    font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 4px;
-    letter-spacing: 0.3px;
-  }
-
-  .method-badge.overridable {
-    background: rgba(124, 77, 255, 0.15);
-    border: 1px solid rgba(124, 77, 255, 0.3);
     color: rgb(180, 140, 255);
+    margin-left: 4px;
+    cursor: default;
   }
 
-  /* Category colours */
-  .cat-badge.cat-crud      { background: rgba(76,175,80,0.12);  border: 1px solid rgba(76,175,80,0.3);  color: #81c784; }
-  .cat-badge.cat-validation{ background: rgba(255,152,0,0.12); border: 1px solid rgba(255,152,0,0.3); color: #ffb74d; }
-  .cat-badge.cat-init      { background: rgba(33,150,243,0.12); border: 1px solid rgba(33,150,243,0.3); color: #64b5f6; }
-  .cat-badge.cat-events    { background: rgba(156,39,176,0.12); border: 1px solid rgba(156,39,176,0.3); color: #ce93d8; }
-  .cat-badge.cat-dataAccess{ background: rgba(0,188,212,0.12);  border: 1px solid rgba(0,188,212,0.3);  color: #4dd0e1; }
-  .cat-badge.cat-utility   { background: rgba(96,125,139,0.15); border: 1px solid rgba(96,125,139,0.35);color: #90a4ae; }
-  .cat-badge.cat-static    { background: rgba(233,30,99,0.12);  border: 1px solid rgba(233,30,99,0.3);  color: #f48fb1; }
-
-  .method-sig {
+  .method-sig-cell code {
     font-size: 11.5px;
     font-family: 'Fira Code', 'Cascadia Code', monospace;
-    color: rgba(232, 241, 255, 0.45);
-    white-space: pre-wrap;
-    word-break: break-all;
+    color: rgba(232, 241, 255, 0.5);
+    white-space: nowrap;
   }
 
-  .method-desc {
+  .method-desc-cell {
     font-size: 12.5px;
-    color: rgba(232, 241, 255, 0.65);
-    line-height: 1.55;
-    margin: 0;
+    color: rgba(232, 241, 255, 0.7);
+    line-height: 1.5;
+    min-width: 280px;
   }
 
-  @container (max-width: 500px) {
-    .method-grid {
-      grid-template-columns: 1fr;
-    }
-  }
+  /* Category badge colours */
+  .method-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.3px; white-space: nowrap; }
+  .cat-badge.cat-crud       { background: rgba(76,175,80,0.12);  border: 1px solid rgba(76,175,80,0.3);  color: #81c784; }
+  .cat-badge.cat-validation { background: rgba(255,152,0,0.12);  border: 1px solid rgba(255,152,0,0.3);  color: #ffb74d; }
+  .cat-badge.cat-init       { background: rgba(33,150,243,0.12); border: 1px solid rgba(33,150,243,0.3); color: #64b5f6; }
+  .cat-badge.cat-events     { background: rgba(156,39,176,0.12); border: 1px solid rgba(156,39,176,0.3); color: #ce93d8; }
+  .cat-badge.cat-dataAccess { background: rgba(0,188,212,0.12);  border: 1px solid rgba(0,188,212,0.3);  color: #4dd0e1; }
+  .cat-badge.cat-utility    { background: rgba(96,125,139,0.15); border: 1px solid rgba(96,125,139,0.35);color: #90a4ae; }
+  .cat-badge.cat-static     { background: rgba(233,30,99,0.12);  border: 1px solid rgba(233,30,99,0.3);  color: #f48fb1; }
 </style>
