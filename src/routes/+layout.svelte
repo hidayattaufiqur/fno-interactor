@@ -6,24 +6,17 @@
   import { flows, tableDefs } from '$lib/data/flows'
 
   let search = ''
-  let sidebarOpen = false   // mobile overlay
-  let desktopOpen = true    // desktop collapse
+  let sidebarOpen = false
   let isLight = false
 
   onMount(() => {
     isLight = document.documentElement.classList.contains('light')
-    desktopOpen = localStorage.getItem('sidebar') !== 'closed'
   })
 
   function toggleTheme() {
     isLight = !isLight
     document.documentElement.classList.toggle('light', isLight)
     localStorage.setItem('theme', isLight ? 'light' : 'dark')
-  }
-
-  function toggleDesktopSidebar() {
-    desktopOpen = !desktopOpen
-    localStorage.setItem('sidebar', desktopOpen ? 'open' : 'closed')
   }
 
   // Close sidebar on any navigation (back button, programmatic goto, etc.)
@@ -79,75 +72,68 @@
   aria-hidden="true"
 ></div>
 
-<!-- Desktop hamburger (fixed top-left) -->
-<button class="desktop-hamburger" on:click={toggleDesktopSidebar} aria-label="Toggle sidebar">
-  <span></span><span></span><span></span>
-</button>
-
 <div class="page">
-  <aside class="nav" class:open={sidebarOpen} class:desktop-closed={!desktopOpen}>
-    <div class="nav-inner" on:click={closeOnNavLink}>
-      <button class="nav-close-btn" aria-label="Close navigation" on:click|stopPropagation={() => (sidebarOpen = false)}>✕</button>
+  <aside class="nav" class:open={sidebarOpen} on:click={closeOnNavLink}>
+    <button class="nav-close-btn" aria-label="Close navigation" on:click|stopPropagation={() => (sidebarOpen = false)}>✕</button>
 
-      <a href="/" class="brand" aria-label="Home">
-        <div class="dot"></div>
-        <div>
-          <div class="eyebrow">D365FO helper</div>
-          <h1>Process Navigator</h1>
-        </div>
-      </a>
-
-      <div class="nav-search">
-        <input
-          type="text"
-          placeholder="Filter flows…"
-          bind:value={search}
-          aria-label="Filter flows by name or module"
-        />
-        {#if search}
-          <button class="nav-search-clear" on:click={() => (search = '')} aria-label="Clear filter">
-            ✕
-          </button>
-        {/if}
+    <a href="/" class="brand" aria-label="Home">
+      <div class="dot"></div>
+      <div>
+        <div class="eyebrow">D365FO helper</div>
+        <h1>Process Navigator</h1>
       </div>
+    </a>
 
-      <div class="flow-list">
-        {#if groupedFlows.length === 0}
-          <div class="mini" style="padding: 8px 4px;">No flows match "{search}".</div>
-        {:else}
-          {#each groupedFlows as group}
-            <div class="flow-group" data-module={group.module}>
-              <div class="flow-group-label">{group.module}</div>
-              {#each group.flows as flow}
-                <a
-                  href="/flow/{flow.id}/{flow.stages[0].id}"
-                  class:selected={flow.id === currentFlowId}
-                  data-module={flow.module}
-                  aria-label="Open {flow.title}"
-                >
-                  <span class="flow-list-dot"></span>
-                  <div class="flow-list-text">
-                    <span>{flow.title}</span>
-                    <small>{flow.summary}</small>
-                  </div>
-                </a>
-              {/each}
-            </div>
-          {/each}
-        {/if}
-      </div>
-
-      <a href="/tables" class="nav-link" class:selected={isTablesPage && !isFindPage}>
-        <span class="nav-link-icon">⬡</span>
-        <span>Table Reference</span>
-        <span class="nav-link-count">{tableCount}</span>
-      </a>
-
-      <a href="/find" class="nav-link" class:selected={isFindPage}>
-        <span class="nav-link-icon">⇢</span>
-        <span>Find Table Path</span>
-      </a>
+    <div class="nav-search">
+      <input
+        type="text"
+        placeholder="Filter flows…"
+        bind:value={search}
+        aria-label="Filter flows by name or module"
+      />
+      {#if search}
+        <button class="nav-search-clear" on:click={() => (search = '')} aria-label="Clear filter">
+          ✕
+        </button>
+      {/if}
     </div>
+
+    <div class="flow-list">
+      {#if groupedFlows.length === 0}
+        <div class="mini" style="padding: 8px 4px;">No flows match "{search}".</div>
+      {:else}
+        {#each groupedFlows as group}
+          <div class="flow-group" data-module={group.module}>
+            <div class="flow-group-label">{group.module}</div>
+            {#each group.flows as flow}
+              <a
+                href="/flow/{flow.id}/{flow.stages[0].id}"
+                class:selected={flow.id === currentFlowId}
+                data-module={flow.module}
+                aria-label="Open {flow.title}"
+              >
+                <span class="flow-list-dot"></span>
+                <div class="flow-list-text">
+                  <span>{flow.title}</span>
+                  <small>{flow.summary}</small>
+                </div>
+              </a>
+            {/each}
+          </div>
+        {/each}
+      {/if}
+    </div>
+
+    <a href="/tables" class="nav-link" class:selected={isTablesPage && !isFindPage}>
+      <span class="nav-link-icon">⬡</span>
+      <span>Table Reference</span>
+      <span class="nav-link-count">{tableCount}</span>
+    </a>
+
+    <a href="/find" class="nav-link" class:selected={isFindPage}>
+      <span class="nav-link-icon">⇢</span>
+      <span>Find Table Path</span>
+    </a>
   </aside>
 
   <main class="content">

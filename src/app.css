@@ -119,24 +119,12 @@ a:hover {
 }
 
 .page {
-  display: flex;
+  display: grid;
+  grid-template-columns: 280px 1fr;
   min-height: 100vh;
 }
 
-/* Outer shell: handles width animation only */
 .nav {
-  width: 280px;
-  flex-shrink: 0;
-  overflow: hidden;
-  transition: width 0.25s cubic-bezier(0.25, 0, 0, 1);
-}
-.nav.desktop-closed {
-  width: 0;
-}
-
-/* Inner shell: visual styling + scroll */
-.nav-inner {
-  width: 280px;
   background: var(--clr-bg-nav);
   border-right: 1px solid var(--clr-border-subtle);
   padding: 28px 22px 24px;
@@ -147,39 +135,6 @@ a:hover {
   top: 0;
   height: 100vh;
   overflow-y: auto;
-}
-
-/* Desktop hamburger — fixed top-left, always visible on desktop */
-.desktop-hamburger {
-  display: flex;
-  position: fixed;
-  top: 14px;
-  left: 14px;
-  z-index: 250;
-  flex-direction: column;
-  gap: 5px;
-  background: var(--clr-surface);
-  border: 1px solid var(--clr-border);
-  border-radius: 5px;
-  cursor: pointer;
-  padding: 8px 7px;
-  transition: border-color 0.15s;
-}
-.desktop-hamburger span {
-  display: block;
-  width: 18px;
-  height: 2px;
-  background: var(--clr-text-muted);
-  border-radius: 2px;
-  transition: background 0.15s;
-}
-.desktop-hamburger:hover span {
-  background: var(--clr-text);
-}
-
-.content {
-  flex: 1;
-  min-width: 0;
 }
 
 .brand {
@@ -559,19 +514,11 @@ ul {
 
 /* ── Mobile: retractable sidebar ──────────────────────────────── */
 
-/* Desktop hamburger hidden on mobile (it has its own mobile-bar hamburger) */
-.desktop-hamburger { display: none; }
-
 /* Hidden by default on desktop */
 .mobile-bar    { display: none; }
 .hamburger     { display: none; }
 .nav-overlay   { display: none; }
 .nav-close-btn { display: none; }
-
-/* Desktop hamburger always visible on desktop */
-@media (min-width: 901px) {
-  .desktop-hamburger { display: flex; }
-}
 
 @media (max-width: 900px) {
   /* Sticky top bar containing the hamburger */
@@ -669,23 +616,16 @@ ul {
     top: 0;
     left: 0;
     height: 100dvh;
-    width: min(290px, 85vw) !important;
-    overflow: visible !important;
+    width: min(290px, 85vw);
     transform: translateX(-100%);
-    transition: transform 0.28s cubic-bezier(0.25, 0, 0, 1) !important;
+    transition: transform 0.28s cubic-bezier(0.25, 0, 0, 1);
     z-index: 200;
-  }
-
-  .nav-inner {
-    width: 100%;
-    padding-top: 56px; /* clear the absolute close button */
-    height: 100%;
-    position: static;
-  }
-
-  .nav.open {
-    transform: translateX(0);
-    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.55);
+    padding: 28px 22px 24px;
+    padding-top: 56px;
+    flex-direction: column;
+    overflow-y: auto;
+    display: flex;
+    gap: 16px;
   }
 
   /* Breathing room on the content side */
