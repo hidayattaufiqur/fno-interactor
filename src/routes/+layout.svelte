@@ -134,20 +134,16 @@
       <span class="nav-link-icon">⇢</span>
       <span>Find Table Path</span>
     </a>
-
-    <button class="theme-toggle" on:click={toggleTheme} aria-label="Toggle theme">
-      {#if isLight}
-        <span class="theme-icon">☾</span> Dark
-      {:else}
-        <span class="theme-icon">☀</span> Light
-      {/if}
-    </button>
   </aside>
 
   <main class="content">
     <slot />
   </main>
 </div>
+
+<button class="theme-toggle" on:click={toggleTheme} aria-label="Toggle theme" title={isLight ? 'Switch to dark mode' : 'Switch to light mode'}>
+  {#if isLight}☾{:else}☀{/if}
+</button>
 
 <style>
   .nav-link-count {
@@ -159,31 +155,30 @@
     border-radius: 10px;
   }
 
+  /* Fixed top-right theme toggle */
   .theme-toggle {
+    position: fixed;
+    top: 14px;
+    right: 16px;
+    z-index: 300;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
-    gap: 7px;
-    margin-top: auto;
-    padding: 7px 10px;
-    background: transparent;
-    border: 1px solid var(--clr-border-subtle);
-    border-radius: 5px;
+    justify-content: center;
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border);
+    border-radius: 6px;
     color: var(--clr-text-muted);
-    font-family: inherit;
-    font-size: 12px;
+    font-size: 15px;
     cursor: pointer;
     transition: border-color 0.15s, color 0.15s;
-    width: 100%;
-    text-align: left;
+    font-family: inherit;
+    line-height: 1;
   }
 
   .theme-toggle:hover {
-    border-color: var(--clr-border);
+    border-color: var(--clr-border-accent);
     color: var(--clr-text);
-  }
-
-  .theme-icon {
-    font-size: 13px;
-    line-height: 1;
   }
 </style>
