@@ -120,11 +120,12 @@
    */
   function edgeColour(isOutgoing, isHovered, isSchema) {
     if (isSchema) {
-      if (isOutgoing) return isHovered ? 'rgba(138,213,255,0.55)' : 'rgba(138,213,255,0.15)'
-      return isHovered ? 'rgba(114,233,163,0.55)' : 'rgba(114,233,163,0.15)'
+      return isHovered
+        ? (isOutgoing ? 'var(--clr-edge-out-h)' : 'var(--clr-edge-in-h)')
+        : 'var(--clr-edge-schema)'
     }
-    if (isOutgoing) return isHovered ? 'rgba(159,210,255,0.85)' : 'rgba(138,213,255,0.28)'
-    return isHovered ? 'rgba(114,233,163,0.85)' : 'rgba(114,233,163,0.28)'
+    if (isOutgoing) return isHovered ? 'var(--clr-edge-out-h)' : 'var(--clr-edge-out)'
+    return isHovered ? 'var(--clr-edge-in-h)' : 'var(--clr-edge-in)'
   }
 
   /**
@@ -151,19 +152,18 @@
       aria-label="Table relation graph for {tableName}"
     >
       <defs>
-        <!-- Outgoing: this table → other (blue) -->
+        <!-- context-stroke makes arrowheads inherit the line's stroke colour -->
         <marker id="arr-b"   viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(138,213,255,0.65)" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
         </marker>
         <marker id="arr-b-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#9fd2ff" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
         </marker>
-        <!-- Incoming: other → this table (green) -->
         <marker id="arr-g"   viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(114,233,163,0.6)" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
         </marker>
         <marker id="arr-g-h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#72e9a3" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
         </marker>
       </defs>
 
@@ -188,7 +188,7 @@
         <!-- Visible line (pointer-events off — hitbox handles interaction) -->
         <line
           x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-          stroke={edgeColour(isOutgoing, isHovered, isSchema)}
+          style="stroke: {edgeColour(isOutgoing, isHovered, isSchema)}"
           stroke-width={isHovered ? 1.5 : 1}
           stroke-dasharray={isSchema ? '4 3' : null}
           marker-end="url(#{edgeMarker(isOutgoing, isHovered)})"
@@ -213,7 +213,8 @@
         <rect
           x={rx} y={ry}
           width={labelWidth} height={rh} rx="4"
-          fill="rgba(8,14,26,0.95)" stroke="rgba(138,213,255,0.25)" stroke-width="1"
+          style="fill: var(--clr-label-bg); stroke: var(--clr-label-bd);"
+          stroke-width="1"
           pointer-events="none"
         />
         <text
@@ -243,17 +244,16 @@
         >
           <title>{satelliteName}</title>
           <rect
-            width={SATELLITE_NODE_W} height={SATELLITE_NODE_H} rx="7"
-            fill={isHovered ? 'rgba(138,213,255,0.13)' : 'rgba(255,255,255,0.04)'}
-            stroke={isHovered ? 'rgba(138,213,255,0.6)' : 'rgba(138,213,255,0.22)'}
+            width={SATELLITE_NODE_W} height={SATELLITE_NODE_H} rx="5"
+            style="fill: {isHovered ? 'var(--clr-node-sat-hover)' : 'var(--clr-surface)'}; stroke: {isHovered ? 'var(--clr-node-sat-hover-bd)' : 'var(--clr-node-sat-bd)'};"
             stroke-width="1"
           />
           <text
             x={SATELLITE_NODE_W / 2} y={SATELLITE_NODE_H / 2 + 5}
             text-anchor="middle"
-            fill={isHovered ? '#d4ecff' : '#9fd2ff'}
+            style="fill: {isHovered ? 'var(--clr-blue-strong)' : 'var(--clr-blue)'};"
             font-size="11.5" font-weight="600"
-            font-family="'Cascadia Code', 'Fira Code', 'Consolas', monospace"
+            font-family="'0xProto', 'Cascadia Code', 'Fira Code', monospace"
             pointer-events="none">{truncate(satelliteName)}</text>
         </g>
       {/each}
@@ -264,25 +264,26 @@
         role="presentation"
       >
         <rect
-          width={CENTER_NODE_W} height={CENTER_NODE_H} rx="9"
-          fill="rgba(114,233,163,0.14)" stroke="rgba(114,233,163,0.6)" stroke-width="1.5"
+          width={CENTER_NODE_W} height={CENTER_NODE_H} rx="7"
+          style="fill: var(--clr-node-ctr); stroke: var(--clr-node-ctr-bd);"
+          stroke-width="1.5"
         />
         <text
           x={CENTER_NODE_W / 2} y={CENTER_NODE_H / 2 + 5}
           text-anchor="middle"
-          fill="#72e9a3"
+          style="fill: var(--clr-green);"
           font-size="13" font-weight="700"
-          font-family="'Cascadia Code', 'Fira Code', 'Consolas', monospace"
+          font-family="'0xProto', 'Cascadia Code', 'Fira Code', monospace"
           pointer-events="none">{truncate(tableName, 19)}</text>
       </g>
 
       <!-- ── Legend ── -->
       <g transform="translate(14, {canvasHeight - 80})">
-        <line x1="0" y1="7" x2="24" y2="7" stroke="rgba(138,213,255,0.55)" stroke-width="1.5" marker-end="url(#arr-b)" />
+        <line x1="0" y1="7" x2="24" y2="7" style="stroke: var(--clr-edge-out-h);" stroke-width="1.5" marker-end="url(#arr-b)" />
         <text x="30" y="11" fill="var(--clr-text-faint)" font-size="10" font-family="sans-serif">outgoing FK</text>
-        <line x1="0" y1="25" x2="24" y2="25" stroke="rgba(114,233,163,0.55)" stroke-width="1.5" marker-end="url(#arr-g)" />
+        <line x1="0" y1="25" x2="24" y2="25" style="stroke: var(--clr-edge-in-h);" stroke-width="1.5" marker-end="url(#arr-g)" />
         <text x="30" y="29" fill="var(--clr-text-faint)" font-size="10" font-family="sans-serif">incoming FK</text>
-        <line x1="0" y1="43" x2="24" y2="43" stroke="rgba(138,213,255,0.3)" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-b)" />
+        <line x1="0" y1="43" x2="24" y2="43" style="stroke: var(--clr-edge-schema);" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arr-b)" />
         <text x="30" y="47" fill="var(--clr-text-faint)" font-size="10" font-family="sans-serif">schema FK (auto-detected)</text>
         <text x="0" y="66" fill="var(--clr-text-faint)" font-size="9.5" font-family="sans-serif">Hover edge for FK fields · click node to navigate</text>
       </g>
@@ -292,9 +293,9 @@
 
 <style>
   .graph-wrap {
-    background: rgba(255, 255, 255, 0.015);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 14px;
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border);
+    border-radius: 8px;
     overflow: hidden;
   }
 </style>
