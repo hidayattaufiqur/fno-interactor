@@ -22,9 +22,11 @@
   let dragStart  = $state({ x: 0, y: 0, panX: 0, panY: 0 })
   let svgEl      = $state(/** @type {SVGSVGElement | null} */ (null))
 
-  // Non-passive wheel listener so preventDefault works
+  // Non-passive wheel + touch listeners so preventDefault works
   $effect(() => {
     if (!svgEl) return
+
+    // ── Wheel (desktop zoom) ──────────────────────────────────────────────
     const onWheel = (e) => {
       e.preventDefault()
       const rect = svgEl.getBoundingClientRect()
@@ -40,8 +42,73 @@
       panY = svgY - my * (canvasHeight / newZoom)
       zoom = newZoom
     }
-    svgEl.addEventListener('wheel', onWheel, { passive: false })
-    return () => svgEl.removeEventListener('wheel', onWheel)
+
+    // ── Touch (mobile pan + pinch-zoom) ───────────────────────────────────
+    /** @type {{ clientX: number; clientY: number }[]} */
+    let lastTouches = []
+
+    const onTouchStart = (e) => {
+      e.preventDefault()
+      lastTouches = Array.from(e.touches).map(t => ({ clientX: t.clientX, clientY: t.clientY }))
+      if (e.touches.length === 1) {
+        isDragging = true
+        hasDragged = false
+        dragStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, panX, panY }
+      }
+    }
+
+    const onTouchMove = (e) => {
+      e.preventDefault()
+      if (e.touches.length === 1 && isDragging) {
+        const dx = e.touches[0].clientX - dragStart.x
+        const dy = e.touches[0].clientY - dragStart.y
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) hasDragged = true
+        const rect   = svgEl.getBoundingClientRect()
+        const scaleX = (canvasWidth  / zoom) / rect.width
+        const scaleY = (canvasHeight / zoom) / rect.height
+        panX = dragStart.panX - dx * scaleX
+        panY = dragStart.panY - dy * scaleY
+      } else if (e.touches.length === 2 && lastTouches.length >= 2) {
+        const t1 = e.touches[0], t2 = e.touches[1]
+        const lt1 = lastTouches[0], lt2 = lastTouches[1]
+        const newDist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY)
+        const oldDist = Math.hypot(lt2.clientX - lt1.clientX, lt2.clientY - lt1.clientY)
+        if (oldDist > 0) {
+          const factor  = newDist / oldDist
+          const rect    = svgEl.getBoundingClientRect()
+          const mx = ((t1.clientX + t2.clientX) / 2 - rect.left) / rect.width
+          const my = ((t1.clientY + t2.clientY) / 2 - rect.top)  / rect.height
+          const newZoom = Math.max(0.35, Math.min(6, zoom * factor))
+          const vbW = canvasWidth  / zoom
+          const vbH = canvasHeight / zoom
+          const svgX = panX + mx * vbW
+          const svgY = panY + my * vbH
+          panX = svgX - mx * (canvasWidth  / newZoom)
+          panY = svgY - my * (canvasHeight / newZoom)
+          zoom = newZoom
+        }
+        hasDragged = true
+        lastTouches = Array.from(e.touches).map(t => ({ clientX: t.clientX, clientY: t.clientY }))
+      }
+    }
+
+    const onTouchEnd = (e) => {
+      lastTouches = Array.from(e.touches).map(t => ({ clientX: t.clientX, clientY: t.clientY }))
+      if (e.touches.length === 0) isDragging = false
+    }
+
+    svgEl.addEventListener('wheel',        onWheel,      { passive: false })
+    svgEl.addEventListener('touchstart',   onTouchStart, { passive: false })
+    svgEl.addEventListener('touchmove',    onTouchMove,  { passive: false })
+    svgEl.addEventListener('touchend',     onTouchEnd,   { passive: false })
+    svgEl.addEventListener('touchcancel',  onTouchEnd,   { passive: false })
+    return () => {
+      svgEl.removeEventListener('wheel',       onWheel)
+      svgEl.removeEventListener('touchstart',  onTouchStart)
+      svgEl.removeEventListener('touchmove',   onTouchMove)
+      svgEl.removeEventListener('touchend',    onTouchEnd)
+      svgEl.removeEventListener('touchcancel', onTouchEnd)
+    }
   })
 
   function startDrag(e) {
@@ -207,7 +274,7 @@
       bind:this={svgEl}
       viewBox="{panX} {panY} {canvasWidth / zoom} {canvasHeight / zoom}"
       width="100%"
-      style="max-height: 500px; display: block; cursor: {isDragging ? 'grabbing' : 'grab'};"
+      style="max-height: 500px; display: block; cursor: {isDragging ? 'grabbing' : 'grab'}; touch-action: none;"
       role="img"
       aria-label="Table relation graph for {tableName}"
       onmousedown={startDrag}
