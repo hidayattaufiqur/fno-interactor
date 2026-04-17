@@ -906,7 +906,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['On-account setup missing', 'Retainage not configured'],
         prerequisites: ['On-account setup', 'Funding rules'],
-        tables: ['ProjInvoiceTable', 'ProjInvoiceTrans', 'CustInvoiceTable', 'ProjOnAccTrans'],
+        tables: ['ProjInvoiceTable', 'ProjInvoiceTrans', 'CustInvoiceTable', 'CustInvoiceLine', 'ProjOnAccTrans'],
         relations: [
           {
             from: 'ProjOnAccTrans',
@@ -917,9 +917,15 @@ export const flows: Flow[] = [
           {
             from: 'ProjInvoiceTrans',
             to: 'CustInvoiceTable',
-            note: 'Project invoices create customer invoices',
+            note: 'Project invoices create customer free-text invoice headers',
             fields: ['ProjInvoiceTrans.InvoiceId = CustInvoiceTable.InvoiceId']
-          }
+          },
+          {
+            from: 'CustInvoiceTable',
+            to: 'CustInvoiceLine',
+            note: 'Each free-text invoice header has one or more draft lines (pre-posting)',
+            fields: ['CustInvoiceLine.ParentRecId = CustInvoiceTable.RecId'],
+          },
         ],
         approvals: ['Invoice approval workflow (optional)']
       },
@@ -1367,7 +1373,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Posting profiles missing', 'Subscription period misaligned'],
         prerequisites: ['Posting profiles', 'Subscription setup'],
-        tables: ['SMAServiceOrderTable', 'SMAServiceOrderLine', 'CustInvoiceTable', 'CustInvoiceTrans', 'SMAContractTable'],
+        tables: ['SMAServiceOrderTable', 'SMAServiceOrderLine', 'CustInvoiceTable', 'CustInvoiceLine', 'CustInvoiceTrans', 'SMAContractTable'],
         relations: [
           {
             from: 'SMAServiceOrderLine',
@@ -1378,9 +1384,15 @@ export const flows: Flow[] = [
           {
             from: 'SMAContractTable',
             to: 'CustInvoiceTable',
-            note: 'Contract billing drives customer invoices',
+            note: 'Contract billing drives customer free-text invoice headers',
             fields: ['SMAContractTable.ContractId → CustInvoiceTable.ContractId']
-          }
+          },
+          {
+            from: 'CustInvoiceTable',
+            to: 'CustInvoiceLine',
+            note: 'Free-text invoice header has draft line rows before posting',
+            fields: ['CustInvoiceLine.ParentRecId = CustInvoiceTable.RecId'],
+          },
         ],
         approvals: ['Invoice approval workflow (optional)']
       }
@@ -2122,7 +2134,7 @@ export const tableDefs: Record<string, TableDef> = {
   },
   CustInvoiceTable: {
     name: "CustInvoiceTable",
-    description: "Free text invoice header for AR invoices not sourced from a sales order (e.g. recurring charges, service fees).",
+    description: "Free text invoice header for AR invoices not sourced from a sales order (e.g. recurring charges, service fees). Lines live in CustInvoiceLine. After posting, the header is recorded in CustInvoiceJour.",
     module: "Accounts Receivable",
     docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/accountsreceivable/worksheetheader/custinvoicetable",
     fields: [
@@ -2168,6 +2180,77 @@ export const tableDefs: Record<string, TableDef> = {
         name: "InvoiceStatus",
         type: "Enum",
         note: "Created / InProcess / Posted / Cancelled.",
+      },
+    ],
+  },
+  CustInvoiceLine: {
+    name: "CustInvoiceLine",
+    description: "Free text invoice line (draft, pre-posting). Each row is one line on a CustInvoiceTable header, holding the revenue account and amount. After the FTI is posted, line data is recorded in CustInvoiceTrans and the header moves to CustInvoiceJour. FTI lines use a ledger account (LedgerDimension) directly — there is no ItemId.",
+    module: "Accounts Receivable",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/accountsreceivable/worksheetline/custinvoiceline",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "System primary key.",
+      },
+      {
+        name: "ParentRecId",
+        type: "Int64",
+        fkTarget: "CustInvoiceTable.RecId",
+        note: "FK to the parent CustInvoiceTable header. Compound display key is (ParentRecId, LineNum).",
+      },
+      {
+        name: "LineNum",
+        type: "Decimal",
+        note: "Display sequence number on the invoice.",
+      },
+      {
+        name: "Description",
+        type: "String",
+        note: "Free-text line description printed on the customer invoice.",
+      },
+      {
+        name: "LedgerDimension",
+        type: "Int64",
+        note: "Ledger account + financial dimensions combination (DimensionAttributeValueCombination). FTI lines credit a revenue account directly — no ItemId.",
+      },
+      {
+        name: "AmountCur",
+        type: "Decimal",
+        note: "Line amount in transaction currency (Quantity × UnitPrice, before tax).",
+      },
+      {
+        name: "Quantity",
+        type: "Decimal",
+        note: "Invoiced quantity.",
+      },
+      {
+        name: "UnitPrice",
+        type: "Decimal",
+        note: "Unit price for the line.",
+      },
+      {
+        name: "TaxGroup",
+        type: "String",
+        fkTarget: "TaxGroupHeading",
+        note: "Sales tax group; combined with TaxItemGroup to resolve applicable tax codes.",
+      },
+      {
+        name: "TaxItemGroup",
+        type: "String",
+        note: "Item sales tax group on the line.",
+      },
+      {
+        name: "CurrencyCode",
+        type: "String",
+        fkTarget: "Currency",
+        note: "Transaction currency — inherited from the CustInvoiceTable header.",
+      },
+      {
+        name: "ProjId",
+        type: "String",
+        note: "Optional project reference; populated when the FTI is generated from project invoicing.",
       },
     ],
   },
