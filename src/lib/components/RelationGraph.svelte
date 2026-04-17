@@ -12,6 +12,60 @@
   let hoveredEdge = $state(/** @type {Relation | null} */ (null))
   let hoveredNode = $state(/** @type {string | null} */ (null))
 
+  // ── Pan / zoom state ───────────────────────────────────────────────────────
+
+  let zoom      = $state(1)
+  let panX      = $state(0)
+  let panY      = $state(0)
+  let isDragging = $state(false)
+  let hasDragged = $state(false)
+  let dragStart  = $state({ x: 0, y: 0, panX: 0, panY: 0 })
+  let svgEl      = $state(/** @type {SVGSVGElement | null} */ (null))
+
+  // Non-passive wheel listener so preventDefault works
+  $effect(() => {
+    if (!svgEl) return
+    const onWheel = (e) => {
+      e.preventDefault()
+      const rect = svgEl.getBoundingClientRect()
+      const mx = (e.clientX - rect.left) / rect.width
+      const my = (e.clientY - rect.top)  / rect.height
+      const factor  = e.deltaY < 0 ? 1.15 : 1 / 1.15
+      const newZoom = Math.max(0.35, Math.min(6, zoom * factor))
+      const vbW = canvasWidth  / zoom
+      const vbH = canvasHeight / zoom
+      const svgX = panX + mx * vbW
+      const svgY = panY + my * vbH
+      panX = svgX - mx * (canvasWidth  / newZoom)
+      panY = svgY - my * (canvasHeight / newZoom)
+      zoom = newZoom
+    }
+    svgEl.addEventListener('wheel', onWheel, { passive: false })
+    return () => svgEl.removeEventListener('wheel', onWheel)
+  })
+
+  function startDrag(e) {
+    if (e.button !== 0) return
+    isDragging = true
+    hasDragged = false
+    dragStart  = { x: e.clientX, y: e.clientY, panX, panY }
+  }
+  function doDrag(e) {
+    if (!isDragging || !svgEl) return
+    const dx = e.clientX - dragStart.x
+    const dy = e.clientY - dragStart.y
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged = true
+    const rect  = svgEl.getBoundingClientRect()
+    const scaleX = (canvasWidth  / zoom) / rect.width
+    const scaleY = (canvasHeight / zoom) / rect.height
+    panX = dragStart.panX - dx * scaleX
+    panY = dragStart.panY - dy * scaleY
+  }
+  function endDrag()   { isDragging = false }
+  function resetView() { zoom = 1; panX = 0; panY = 0 }
+  function zoomIn()    { zoom = Math.min(6,    zoom * 1.3) }
+  function zoomOut()   { zoom = Math.max(0.35, zoom / 1.3) }
+
   // ── Layout constants ────────────────────────────────────────────────────────
 
   /** Width / height of satellite (non-centre) nodes, in SVG units */
@@ -144,12 +198,22 @@
   </p>
 {:else}
   <div class="graph-wrap">
+    <div class="graph-zoom-controls">
+      <button class="graph-zoom-btn" onclick={zoomIn}  title="Zoom in">+</button>
+      <button class="graph-zoom-btn" onclick={zoomOut} title="Zoom out">−</button>
+      <button class="graph-zoom-btn" onclick={resetView} title="Reset view" style="font-size:11px; width:auto; padding:0 7px;">⟳</button>
+    </div>
     <svg
-      viewBox="0 0 {canvasWidth} {canvasHeight}"
+      bind:this={svgEl}
+      viewBox="{panX} {panY} {canvasWidth / zoom} {canvasHeight / zoom}"
       width="100%"
-      style="max-height: 500px; display: block;"
+      style="max-height: 500px; display: block; cursor: {isDragging ? 'grabbing' : 'grab'};"
       role="img"
       aria-label="Table relation graph for {tableName}"
+      onmousedown={startDrag}
+      onmousemove={doDrag}
+      onmouseup={endDrag}
+      onmouseleave={endDrag}
     >
       <defs>
         <!-- context-stroke makes arrowheads inherit the line's stroke colour -->
@@ -237,7 +301,7 @@
           aria-label="View {satelliteName} table reference"
           tabindex="0"
           style="cursor: pointer;"
-          onclick={() => goto('/tables/' + satelliteName)}
+          onclick={(e) => { if (hasDragged) return; goto('/tables/' + satelliteName) }}
           onmouseenter={() => (hoveredNode = satelliteName)}
           onmouseleave={() => (hoveredNode = null)}
           onkeydown={(e) => e.key === 'Enter' && goto('/tables/' + satelliteName)}
@@ -293,9 +357,42 @@
 
 <style>
   .graph-wrap {
+    position: relative;
     background: var(--clr-surface);
     border: 1px solid var(--clr-border);
     border-radius: 8px;
     overflow: hidden;
+  }
+
+  .graph-zoom-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 10;
+  }
+
+  .graph-zoom-btn {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--clr-surface-raised);
+    border: 1px solid var(--clr-border);
+    border-radius: 4px;
+    color: var(--clr-text-muted);
+    font-size: 15px;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    transition: border-color 0.1s, color 0.1s;
+    user-select: none;
+  }
+
+  .graph-zoom-btn:hover {
+    border-color: var(--clr-border-accent);
+    color: var(--clr-text);
   }
 </style>

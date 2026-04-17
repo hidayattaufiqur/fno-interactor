@@ -175,6 +175,9 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .content {
@@ -626,6 +629,11 @@ ul {
     overflow-y: auto;
     display: flex;
     gap: 16px;
+  }
+
+  .nav.open {
+    transform: translateX(0);
+    box-shadow: 6px 0 32px rgba(0, 0, 0, 0.55);
   }
 
   /* Breathing room on the content side */
