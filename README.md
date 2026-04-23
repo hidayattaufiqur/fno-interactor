@@ -1,43 +1,68 @@
-# Svelte + Vite
+# FnO Navigator — D365FO Process Navigator
 
-This template should help get you started developing with Svelte in Vite.
+A static SvelteKit app for navigating Dynamics 365 Finance & Operations (D365FO) business processes, tracing table relationships, and exploring technical customisations.
 
-## Recommended IDE Setup
+Overview
+--------
+FnO Navigator provides a fast, offline-capable reference that helps answer questions such as: what tables are involved in this process, how does a purchase order flow through the system, and where a customisation plugs in. The app is a static site that maps process flows, exposes a searchable table reference, and includes a Table Path Finder that computes relationships between tables.
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+Problem
+-------
+D365FO is a deep, interconnected ERP. When joining a project or debugging an unfamiliar module it's time-consuming to answer high-level questions using only the AOT or sprawling documentation. FnO Navigator surfaces those answers without opening Visual Studio or digging through internal wikis.
 
-## Need an official Svelte framework?
+Role
+----
+Solo author: problem definition, data modelling, UI design, and implementation.
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+Solution & Features
+-------------------
+- Process Flows: grouped by D365FO module (AP, AR, Inventory, etc.) with stages and linked tables.
+- Table Reference: searchable list of key tables with descriptions, fields, and relationships.
+- Table Path Finder: finds how two tables are related through the data model.
 
-## Technical considerations
+Stack
+-----
+- Framework: SvelteKit (static adapter)
+- Build tool: Vite
+- Data: Static TypeScript data files (data-as-code)
 
-**Why use this over SvelteKit?**
+Key decisions
+-------------
+- Static site for zero-server cost, instant loads, and offline capability.
+- Data-as-code (TypeScript) for type safety and ease of extension.
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
+Status
+------
+Live and in active use. Source is not yet public (contains proprietary process knowledge from client work).
 
-This template contains as little as possible to get started with Vite + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
+Local development
+-----------------
+Prerequisites: Node.js and npm (or your preferred package manager).
 
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
+Install and run locally:
 
-**Why include `.vscode/extensions.json`?**
-
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `checkJs` in the JS template?**
-
-It is likely that most cases of changing variable types in runtime are likely to be accidental, rather than deliberate. This provides advanced typechecking out of the box. Should you like to take advantage of the dynamically-typed nature of JavaScript, it is trivial to change the configuration.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/sveltejs/svelte-hmr/tree/master/packages/svelte-hmr#preservation-of-local-state).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
-
-```js
-// store.js
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+```sh
+npm install
+npm run dev
 ```
+
+Build and preview:
+
+```sh
+npm run build
+npm run preview
+```
+
+Deployment
+----------
+The app is built as a static site (SvelteKit adapter-static) and can be deployed to any static hosting provider (Netlify, GitHub Pages, static web server, etc.).
+
+Repository hygiene & security notes
+---------------------------------
+- This repository's .gitignore excludes node_modules, build outputs, and local environment files; do not commit .env or other secret files.
+- Do not commit storage-state.json, Playwright auth/state files, or any files containing tokens.
+- If you need to purge sensitive data from history, use a specialized tool such as git-filter-repo or BFG (this is a destructive operation; contact the repo owner before proceeding).
+
+Source
+------
+This README was adapted from the project case study and data maintained in the companion site at `../hidayattaufiqur.dev/src/pages/projects/fno-navigator-case-study.astro` and `data.ts`.
