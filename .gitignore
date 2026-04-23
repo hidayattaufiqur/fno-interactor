@@ -1,38 +1,56 @@
+# Node modules
+node_modules/
+
+# Build / output
+/build/
+/dist/
+/.svelte-kit/
+.vite/
+/.cache/
+
+# Vite / SvelteKit build outputs
+/build/_app/
+/.svelte-kit/output/
+
+# Environment files (local secrets)
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
+
 # Logs
-logs
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-# Dependencies
-node_modules
+# Coverage
+coverage/
+.nyc_output/
 
-# Build outputs (generated — do not commit)
-dist
-dist-ssr
-build/
-.svelte-kit/
+# Database
+*.sqlite
+*.db
 
-# Environment / local overrides
-*.local
+# Keys and certs
+*.pem
+*.key
+*.crt
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# Playwright / test artifacts
+playwright-report/
+storage-state.json
 
-# Tooling caches
-.playwright/
+# Local-only tooling / private assistant metadata
 .claude/
+.github/copilot-instructions.md
 
-# Vite scaffold leftover
-public/
+# Ignore build artifacts created by SvelteKit / adapter
+/.svelte-kit/
+/.svelte-kit/output/
