@@ -57,4 +57,3 @@ storage-state.json
 
 # Large static assets that should not be committed
 /static/fonts/
-/static/data/
