@@ -54,3 +54,7 @@ storage-state.json
 # Ignore build artifacts created by SvelteKit / adapter
 /.svelte-kit/
 /.svelte-kit/output/
+
+# Large static assets that should not be committed
+/static/fonts/
+/static/data/
