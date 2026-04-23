@@ -72,4 +72,4 @@ The table relationship dataset used by the Table Path Finder feature is included
 
   https://github.com/ameyer505/MicrosoftDynamicsTableAssociations
 
-Please follow the original project's license and attribution requirements when redistributing or adapting that dataset.
+The upstream repository is licensed under the MIT License. That repository's MIT license permits reuse, so this dataset is included here under the same MIT terms with attribution to the original project (ameyer505 / MicrosoftDynamicsTableAssociations). If you redistribute or adapt the dataset, keep the attribution and license notice.
