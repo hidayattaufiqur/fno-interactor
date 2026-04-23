@@ -4,7 +4,7 @@ A static SvelteKit app for navigating Dynamics 365 Finance & Operations (D365FO)
 
 Overview
 --------
-FnO Navigator provides a fast, offline-capable reference that helps answer questions such as: what tables are involved in this process, how does a purchase order flow through the system, and where a customisation plugs in. The app is a static site that maps process flows, exposes a searchable table reference, and includes a Table Path Finder that computes relationships between tables.
+FnO Navigator provides a fast reference that helps answer questions such as: what tables are involved in this process, how does a purchase order flow through the system, and where a customisation plugs in. The app is a static site that maps process flows, exposes a searchable table reference, and includes a Table Path Finder that computes relationships between tables.
 
 Problem
 -------
@@ -28,7 +28,7 @@ Stack
 
 Key decisions
 -------------
-- Static site for zero-server cost, instant loads, and offline capability.
+- Static site for zero-server cost and fast loads. Offline capability is not implemented yet (planned).
 - Data-as-code (TypeScript) for type safety and ease of extension.
 
 Status
