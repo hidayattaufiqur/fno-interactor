@@ -25,6 +25,7 @@ Stack
 - Framework: SvelteKit (static adapter)
 - Build tool: Vite
 - Data: Static TypeScript data files (data-as-code)
+ - Table relations dataset: included as static/data/fk-map.json (sourced from and inspired by https://github.com/ameyer505/MicrosoftDynamicsTableAssociations)
 
 Key decisions
 -------------
@@ -63,6 +64,12 @@ Repository hygiene & security notes
 - Do not commit storage-state.json, Playwright auth/state files, or any files containing tokens.
 - If you need to purge sensitive data from history, use a specialized tool such as git-filter-repo or BFG (this is a destructive operation; contact the repo owner before proceeding).
 
-Source
+Source & Data Attribution
 ------
-This README was adapted from the project case study and data maintained in the companion site at `../hidayattaufiqur.dev/src/pages/projects/fno-navigator-case-study.astro` and `data.ts`.
+This README and the project's case study content were adapted from the companion site at `../hidayattaufiqur.dev/src/pages/projects/fno-navigator-case-study.astro` and `data.ts`.
+
+The table relationship dataset used by the Table Path Finder feature is included as `static/data/fk-map.json`. The dataset and the concept were sourced from and inspired by Alex Meyer's MicrosoftDynamicsTableAssociations project:
+
+  https://github.com/ameyer505/MicrosoftDynamicsTableAssociations
+
+Please follow the original project's license and attribution requirements when redistributing or adapting that dataset.
