@@ -34,7 +34,7 @@ Key decisions
 
 Status
 ------
-Live and in active use. Source is not yet public (contains proprietary process knowledge from client work).
+Live and in active use. The site is deployed at https://fno.hidayattaufiqur.dev and the source code for this project is publicly available in this repository.
 
 Local development
 -----------------
