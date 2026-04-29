@@ -4,10 +4,46 @@
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" type="image/png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <!-- Critical background applied before any JS or external CSS loads -->
+    <!-- Critical styles before any JS or external CSS loads -->
     <style>
       html { background: #0d1117; }
       html.light { background: #f6f8fa; }
+
+      #splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #0d1117;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        transition: opacity 0.25s ease;
+      }
+      html.light #splash { background: #f6f8fa; }
+      #splash.out { opacity: 0; pointer-events: none; }
+
+      .splash-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #5a94e8;
+        animation: sp 1.2s ease-in-out infinite;
+      }
+      html.light .splash-dot { background: #0969da; }
+
+      .splash-label {
+        font-family: ui-monospace, 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+        font-size: 13px;
+        color: #7d8590;
+        letter-spacing: 0.06em;
+      }
+
+      @keyframes sp {
+        0%, 100% { opacity: 0.3; transform: scale(0.75); }
+        50%       { opacity: 1;   transform: scale(1);    }
+      }
     </style>
     <!-- Prevent theme flash: apply stored preference before first paint -->
     <script>
@@ -22,6 +58,10 @@
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
+    <div id="splash">
+      <div class="splash-dot"></div>
+      <span class="splash-label">D365FO Navigator</span>
+    </div>
     <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>

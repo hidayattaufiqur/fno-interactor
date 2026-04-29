@@ -13,6 +13,11 @@
 
   onMount(() => {
     isLight = document.documentElement.classList.contains('light')
+    const splash = document.getElementById('splash')
+    if (splash) {
+      splash.classList.add('out')
+      setTimeout(() => splash.remove(), 260)
+    }
   })
 
   function toggleTheme() {
