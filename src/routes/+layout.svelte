@@ -7,7 +7,9 @@
 
   let search = ''
   let sidebarOpen = false
-  let isLight = false
+  let isLight = typeof document !== 'undefined'
+    ? document.documentElement.classList.contains('light')
+    : false
 
   onMount(() => {
     isLight = document.documentElement.classList.contains('light')

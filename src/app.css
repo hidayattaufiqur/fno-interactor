@@ -15,6 +15,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   color-scheme: dark;
+  background: var(--clr-bg);
 
   /* ── Dark mode defaults ── */
   --clr-bg: #0d1117;
