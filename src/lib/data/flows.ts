@@ -229,7 +229,7 @@ export const flows: Flow[] = [
           'Location directive not covering the item type or zone',
         ],
         prerequisites: ['Location directives', 'Work templates', 'Wave templates'],
-        tables: ['WHSWorkTable', 'WHSWorkLine', 'WHSShipment', 'WHSLoadTable', 'InventTrans', 'CustPackingSlipJour', 'CustPackingSlipTrans'],
+        tables: ['WHSWorkTable', 'WHSWorkLine', 'WHSShipmentTable', 'WHSLoadTable', 'InventTrans', 'CustPackingSlipJour', 'CustPackingSlipTrans'],
         relations: [
           {
             from: 'WHSWorkLine',
@@ -615,7 +615,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Resource group capacity not set', 'BOM version not approved/activated'],
         prerequisites: ['Resources, resource groups, calendars', 'Cost groups'],
-        tables: ['BOM', 'BOMVersion', 'RouteTable', 'RouteOpr', 'WrkCtrTable', 'ReqItemTable'],
+        tables: ['BOMTable', 'BOMVersion', 'RouteTable', 'RouteOpr', 'WrkCtrTable', 'ReqItemTable'],
         relations: [
           {
             from: 'BOMVersion',
@@ -3172,6 +3172,22 @@ export const tableDefs: Record<string, TableDef> = {
       },
     ],
   },
+
+  TaxGroup: {
+    name: "TaxGroup",
+    description: "Sales tax group — defines the set of tax codes applicable to a customer or vendor. During tax calculation the intersection of the sales tax group (from CustTable/VendTable or transaction) and the item sales tax group (TaxItemGroupHeading) determines which tax codes apply. One row per named group.",
+    module: "Tax",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/tax/group/taxgroup",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "TaxGroup", type: "String", note: "Natural primary key — sales tax group code (e.g. 'DOMESTIC', 'EU', 'EXPORT')" },
+      { name: "Name", type: "String", note: "Human-readable description of the tax group" },
+      { name: "TaxRoundOff", type: "Decimal", note: "Rounding precision for tax amounts in this group" },
+      { name: "TaxRoundOffType", type: "Enum", note: "Rounding direction: 0=Ordinary, 1=Downward, 2=Upward" },
+      { name: "FreeTax", type: "Enum", note: "If set, transactions with this group are fully exempt from tax" },
+    ],
+  },
+
   CustSettlement: {
     name: "CustSettlement",
     description: "Links an AR invoice transaction to the payment (or other offset) transaction that settles it, recording the settled amount and date.",
@@ -3649,6 +3665,23 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  ChargesSetup: {
+    name: "ChargesSetup",
+    description: "Misc charges (markup) code setup table — defines named charge codes used to add extra fees (freight, handling, insurance) to sales orders, purchase orders, and invoices. Each code specifies the debit/credit posting type and account. Known as MarkupTable in the D365FO AOT.",
+    module: "Accounts Receivable / Procurement and Sourcing",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/procurement/charges-procurement-overview",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "MarkupCode", type: "String", note: "Natural primary key — charge code identifier (e.g. 'FREIGHT', 'HANDLING')" },
+      { name: "Txt", type: "String", note: "Human-readable description of the charge" },
+      { name: "MarkupType", type: "Enum", note: "Debit posting type: 0=Ledger account, 1=Item, 2=Customer/vendor, 3=Internal" },
+      { name: "MarkupAccount", type: "String", note: "Ledger account for the debit side of the charge posting" },
+      { name: "MarkupTypeCr", type: "Enum", note: "Credit posting type (same enum as MarkupType)" },
+      { name: "MarkupAccountCr", type: "String", note: "Ledger account for the credit side of the charge posting" },
+      { name: "MarkupCategory", type: "String", note: "Optional category grouping charges for reporting" },
+    ],
+  },
+
   VendPackingSlipJour: {
     name: "VendPackingSlipJour",
     description: "Vendor product receipt journal header. Created when a PO product receipt is posted; represents one physical delivery event from the vendor (one packing slip).",
@@ -4062,8 +4095,22 @@ export const tableDefs: Record<string, TableDef> = {
       {
         name: "DataAreaForCreation",
         type: "String",
-        note: "Legal entity identifier in which this dimension combination was first created",
+         note: "Legal entity identifier in which this dimension combination was first created",
       },
+    ],
+  },
+
+  DimensionHierarchy: {
+    name: "DimensionHierarchy",
+    description: "Account structure (dimension hierarchy) definition — specifies the main account and financial dimension segments allowed for a ledger, including their ordering, wildcard rules, and whether a segment is required. Used as the account structure FK in DimensionAttributeValueCombination. Each ledger chart of accounts has one or more active account structures.",
+    module: "General Ledger",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/finance/general-ledger/configure-account-structures",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key; referenced by DimensionAttributeValueCombination.AccountStructure" },
+      { name: "Name", type: "String", note: "Display name of the account structure (e.g. 'Balance sheet', 'P&L')" },
+      { name: "StructureType", type: "Enum", note: "0=AccountStructure (main account + dimensions), 1=AdvancedRule (supplemental dimensions)" },
+      { name: "IsActive", type: "Enum", note: "Whether this structure is active and enforced for new postings" },
+      { name: "Description", type: "String", note: "Optional description of the hierarchy" },
     ],
   },
 
@@ -4256,6 +4303,19 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  LedgerCalendar: {
+    name: "LedgerCalendar",
+    description: "Links a fiscal calendar to a ledger (legal entity), and optionally restricts posting to specific periods within that calendar. Controls which fiscal calendar is active for a given ledger and which periods are open or on hold for transaction posting.",
+    module: "General Ledger",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/finance/general-ledger/fiscal-calendars-fiscal-years-periods",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "Ledger", type: "Int64", fkTarget: "Ledger.RecId", note: "FK to the ledger (legal entity) this calendar assignment applies to" },
+      { name: "FiscalCalendar", type: "Int64", fkTarget: "FiscalCalendar.RecId", note: "FK to the fiscal calendar used by this ledger" },
+      { name: "AllowTransactionsInOpenPeriods", type: "Enum", note: "Controls whether transactions are allowed in open periods (0=Yes, 1=No — requires explicit period opening)" },
+    ],
+  },
+
   LedgerAllocationRule: {
     name: "LedgerAllocationRule",
     description: "Allocation rule for automatically distributing ledger balances or fixed amounts to destination accounts. Supports four methods: Basis (proportional to a ledger balance), Fixed Percentage, Fixed Weight, and Equally.",
@@ -4313,6 +4373,23 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  Currency: {
+    name: "Currency",
+    description: "Currency master — one row per ISO 4217 currency code supported in the system. Defines the symbol, decimal precision, and rounding unit for amounts displayed and stored in that currency. Referenced by transaction tables via CurrencyCode.",
+    module: "System / Currency",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/common/currency/group/currency",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "CurrencyCode", type: "String", note: "Natural primary key — ISO 4217 code (e.g. 'USD', 'EUR', 'GBP')" },
+      { name: "Txt", type: "String", note: "Full name of the currency (e.g. 'US dollar')" },
+      { name: "Symbol", type: "String", note: "Currency symbol (e.g. '$', '€', '£')" },
+      { name: "RoundOffType", type: "Enum", note: "Rounding method: 0=Ordinary, 1=Downward, 2=Upward" },
+      { name: "RoundOffFinancial", type: "Decimal", note: "Rounding unit for financial amounts (e.g. 0.01 for cent precision)" },
+      { name: "RoundOffSales", type: "Decimal", note: "Rounding unit for sales prices" },
+      { name: "RoundOffPurchase", type: "Decimal", note: "Rounding unit for purchase prices" },
+    ],
+  },
+
   LedgerConsolidate: {
     name: "LedgerConsolidate",
     description: "Consolidation run record (CDM table: LedgerConsolidateHist). Each online or import consolidation execution creates a history record identifying the source subsidiary and target consolidated legal entity.",
@@ -4323,6 +4400,22 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "CompanyIdOrigin", type: "string (nullable)", note: "DataAreaId of the subsidiary legal entity being consolidated (displayName: 'Company accounts')" },
       { name: "Description", type: "string (nullable)", note: "Description of the consolidation run" },
       { name: "DataAreaId", type: "string (isReadOnly)", note: "Legal entity of the target (parent/consolidated) entity" },
+    ],
+  },
+
+  LedgerConsolidateTrans: {
+    name: "LedgerConsolidateTrans",
+    description: "Consolidation transaction line — one row per ledger account balance transferred from a subsidiary into the consolidated legal entity during an online or import consolidation run. References the LedgerConsolidate header and stores the translated amount in the consolidation currency.",
+    module: "General Ledger / Consolidations",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/finance/budgeting/consolidation-elimination-overview",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "AccountNum", type: "String", fkTarget: "MainAccount.MainAccountId", note: "Main account from the subsidiary being consolidated" },
+      { name: "ConsolidateAmount", type: "Decimal", note: "Amount translated into the consolidation currency" },
+      { name: "CurrencyCode", type: "String", fkTarget: "Currency.CurrencyCode", note: "Currency of the translated consolidation amount" },
+      { name: "TransDate", type: "Date", note: "Accounting date of the consolidation transaction" },
+      { name: "Voucher", type: "String", note: "Voucher number for the GL posting in the consolidated entity" },
+      { name: "DataAreaId", type: "String", note: "Legal entity of the consolidation target" },
     ],
   },
 
@@ -4357,6 +4450,20 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "DueDate", type: "date", note: "Calculated task due date based on template relative days and period end date" },
       { name: "Status", type: "int32 (enum)", note: "Task status: 0=Open, 1=Completed, 2=Blocked (dependency not met)" },
       { name: "DataAreaId", type: "string", note: "Legal entity the task applies to" },
+    ],
+  },
+
+  FinancialReportingTree: {
+    name: "FinancialReportingTree",
+    description: "Financial reporting tree definition used in Management Reporter / Financial reporting. Defines the hierarchy of reporting units (nodes) that map to legal entities, departments, or cost centres, enabling row-by-column financial statements to roll up across organisational units.",
+    module: "General Ledger / Financial Reporting",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/finance/general-ledger/financial-reporting-tree-definitions",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "TreeName", type: "String", note: "Natural key — name of the reporting tree definition" },
+      { name: "Description", type: "String", note: "Human-readable description of the reporting tree" },
+      { name: "CurrentVersion", type: "Int32", note: "Active version number of the tree definition" },
+      { name: "IsActive", type: "Enum", note: "Whether this tree is active for report generation" },
     ],
   },
 
@@ -4912,6 +5019,21 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  HcmEligibilityRule: {
+    name: "HcmEligibilityRule",
+    description: "Benefit eligibility rule — defines the criteria a worker must meet to be eligible for a specific benefit plan (e.g. employment type = full-time, length of service ≥ 90 days, job title match). Rules are evaluated during open enrollment to filter available plans per worker.",
+    module: "Human Resources – Benefits Management",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/human-resources/hr-benefits-eligibility-rules",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "RuleId", type: "String", note: "Natural key — eligibility rule identifier" },
+      { name: "Description", type: "String", note: "Human-readable description of what this rule tests" },
+      { name: "RuleType", type: "Enum", note: "Type of condition: EmploymentType, JobTitle, Department, LengthOfService, etc." },
+      { name: "EffectiveDate", type: "Date", note: "Date from which this rule is active" },
+      { name: "ExpirationDate", type: "Date", note: "Date after which this rule is no longer evaluated; nullable for open-ended rules" },
+    ],
+  },
+
   HcmLeaveType: {
     name: "HcmLeaveType",
     description: "Leave type definition (e.g. Vacation/PTO, Sick Leave, FMLA, Parental Leave). Configures the category (Scheduled/Unscheduled), unit (Hours/Days), accrual earning code, approval workflow, reason code requirements, and calendar color.",
@@ -4925,6 +5047,39 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "LeaveAmountUnit", type: "Enum", note: "Hours or Days — unit used when entering leave amounts" },
       { name: "EarningCodeId", type: "String(10)", note: "FK → PayrollEarningCode; payroll earning code linked to this leave type; nullable" },
       { name: "WorkflowId", type: "String(20)", note: "FK → workflow definition; approval workflow for leave requests; nullable" },
+    ],
+  },
+
+  HcmLeaveAccrualSchedule: {
+    name: "HcmLeaveAccrualSchedule",
+    description: "Leave accrual schedule — defines the rate and frequency at which a worker earns (accrues) leave balance for a given leave type. Specifies accrual amount per period, accrual frequency (monthly, bi-weekly), carry-forward limits, and waiting period before accrual begins.",
+    module: "Human Resources – Leave and Absence",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/human-resources/hr-leave-and-absence-accrual",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "LeaveAccrualScheduleId", type: "String", note: "Natural key — accrual schedule identifier" },
+      { name: "Description", type: "String", note: "Human-readable description of the schedule" },
+      { name: "LeaveTypeId", type: "String", fkTarget: "HcmLeaveType.LeaveTypeId", note: "FK to the leave type this schedule accrues for" },
+      { name: "AccrualFrequency", type: "Enum", note: "Frequency of accrual: Monthly, SemiMonthly, BiWeekly, Weekly" },
+      { name: "AccrualAmount", type: "Decimal", note: "Hours or days accrued per accrual period" },
+      { name: "MaximumCarryForward", type: "Decimal", note: "Maximum balance that can be carried forward to the next accrual year; nullable for unlimited" },
+      { name: "WaitingPeriod", type: "Int32", note: "Days a new employee must wait before accrual begins" },
+    ],
+  },
+
+  HcmLeaveBank: {
+    name: "HcmLeaveBank",
+    description: "Leave bank — stores the current accrued leave balance per worker per leave type. Updated by accrual runs and leave request approvals. One row per worker–leave type combination; Balance holds the available hours/days.",
+    module: "Human Resources – Leave and Absence",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/human-resources/hr-leave-and-absence-overview",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "Worker", type: "Int64", fkTarget: "HcmWorker.RecId", note: "FK to the worker whose leave balance is tracked" },
+      { name: "LeaveTypeId", type: "String", fkTarget: "HcmLeaveType.LeaveTypeId", note: "FK to the leave type for this balance" },
+      { name: "Balance", type: "Decimal", note: "Current available balance in the unit defined by the leave type (hours or days)" },
+      { name: "TotalAccrued", type: "Decimal", note: "Total amount accrued in the current accrual year before any usage" },
+      { name: "TotalUsed", type: "Decimal", note: "Total amount used (approved leave requests) in the current year" },
+      { name: "CarryForwardBalance", type: "Decimal", note: "Balance carried forward from the previous accrual year" },
     ],
   },
 
@@ -5072,6 +5227,22 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  SMADispatchBoard: {
+    name: "SMADispatchBoard",
+    description: "Service dispatch board record — represents a dispatcher's view of scheduled and unscheduled service orders. Tracks which technician (resource) is assigned to a service order, scheduled start/end times, and dispatch status. Used by the Dispatch Board workspace to manage field service scheduling.",
+    module: "Service Management",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/service-management/dispatch-board",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "ServiceOrderId", type: "String", fkTarget: "SMAServiceOrderTable.ServiceOrderId", note: "FK to the service order being dispatched" },
+      { name: "Worker", type: "Int64", fkTarget: "HcmWorker.RecId", note: "FK to the technician/worker assigned to this dispatch" },
+      { name: "ScheduledStartDate", type: "Date", note: "Planned date and time the technician should start the service visit" },
+      { name: "ScheduledEndDate", type: "Date", note: "Planned date and time the service visit should end" },
+      { name: "DispatchStatus", type: "Enum", note: "Status: 0=Unscheduled, 1=Scheduled, 2=InProgress, 3=Completed, 4=Cancelled" },
+      { name: "ActivityCode", type: "String", note: "Activity code indicating the type of service activity (repair, installation, inspection)" },
+    ],
+  },
+
   ResResource: {
     name: "ResResource",
     description: "Resource identifier (ResResourceIdentifier in CDM) — each record maps a schedulable resource (person or machine) to its backing WrkCtrTable entry. The RecId of this table is the 'resource ID' used across project scheduling, resource booking, and service dispatch activities.",
@@ -5180,6 +5351,23 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  ReqPlanData: {
+    name: "ReqPlanData",
+    description: "Master plan data settings — stores coverage parameters per item–coverage group combination within a master plan. Controls reorder point, minimum/maximum quantities, safety stock, and the coverage code (Period, Requirement, Min/Max) that governs how planned orders are calculated for each item in the plan.",
+    module: "Master Planning",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/master-planning/coverage-settings",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "FK to the item these coverage settings apply to" },
+      { name: "ReqPlanId", type: "String", fkTarget: "ReqPlanSched.ReqPlanIdSched", note: "FK to the master plan this data row belongs to" },
+      { name: "CovCode", type: "Enum", note: "Coverage code: 0=Period, 1=Requirement, 2=MinMax, 3=Manual" },
+      { name: "MinQty", type: "Decimal", note: "Minimum on-hand quantity (safety stock) to maintain" },
+      { name: "MaxQty", type: "Decimal", note: "Maximum on-hand quantity target (used with Min/Max coverage)" },
+      { name: "ReorderPoint", type: "Decimal", note: "On-hand level at which a replenishment order is triggered" },
+      { name: "LeadTime", type: "Int32", note: "Override lead time in days for this item in this plan" },
+    ],
+  },
+
   ReqPlanSched: {
     name: "ReqPlanSched",
     description: "Master plan schedule definition — each record configures one named master plan (scheduling method, time fences, margins, etc.). A plan run reads this record and generates ReqTrans rows. CDM display name: 'Master plan setup'.",
@@ -5201,6 +5389,37 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  ReqPO: {
+    name: "ReqPO",
+    description: "Planned purchase order — a firmed or unfirmed planned order for a purchased item generated by master planning. Represents the system's recommendation to create a purchase order for a quantity on a date. Can be firmed (converted to a real PO) or adjusted before firming.",
+    module: "Master Planning",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/master-planning/planning-optimization/planned-order-firming",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "ReqPOId", type: "String", note: "Natural key — planned purchase order identifier" },
+      { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Item to be purchased" },
+      { name: "ReqDate", type: "Date", note: "Required receipt date (demand date) driving the planned order" },
+      { name: "Qty", type: "Decimal", note: "Planned order quantity in purchase unit" },
+      { name: "VendAccount", type: "String", fkTarget: "VendTable.AccountNum", note: "Suggested vendor; nullable if not yet determined" },
+      { name: "PlanVersion", type: "Int64", fkTarget: "ReqPOPlanVersion.RecId", note: "FK to the plan version this planned order belongs to" },
+      { name: "Status", type: "Enum", note: "0=Unprocessed, 1=Approved, 2=Firmed — Firmed orders are converted to actual POs" },
+    ],
+  },
+
+  ReqPOPlanVersion: {
+    name: "ReqPOPlanVersion",
+    description: "Master planning version snapshot — each plan run creates a new version record. Planned orders (ReqPO, ReqTrans) reference this version so older plan results are preserved until the next run overwrites them. Enables comparison between plan runs.",
+    module: "Master Planning",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/master-planning/master-planning-setup",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key; referenced by ReqPO.PlanVersion and ReqTrans.PlanVersion" },
+      { name: "ReqPlanId", type: "String", fkTarget: "ReqPlanSched.ReqPlanIdSched", note: "FK to the master plan definition this version belongs to" },
+      { name: "PlanDate", type: "Date", note: "Date and time the plan run was executed" },
+      { name: "IsActive", type: "Enum", note: "Whether this is the currently active version displayed in the net requirements form" },
+      { name: "RunBy", type: "String", note: "User ID of the person or batch job that triggered this plan run" },
+    ],
+  },
+
   InventForecastTable: {
     name: "InventForecastTable",
     description: "Demand forecast entry lines — stores per-item, per-period sales/demand forecast quantities used as input to master planning. In D365FO the underlying AOT table is ForecastSales; CDM exposes it as 'Demand forecast' (ForecastSales). A parallel table ForecastInvent holds the derived inventory forecast balance view.",
@@ -5219,6 +5438,22 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "ItemRouteId", type: "string", note: "" },
       { name: "AllocateMethod", type: "int32", note: "" },
       { name: "Active", type: "int32", note: "" },
+    ],
+  },
+
+  ReqItemTable: {
+    name: "ReqItemTable",
+    description: "Item requirements table — stores demand lines originating from sources other than sales orders (e.g. project requirements, production forecasts, intercompany demand). Each row represents a net requirement for an item on a specific date, quantity, and dimension. Fed into master planning as an additional demand signal.",
+    module: "Master Planning / Production Control",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/master-planning/demand-forecasting-setup",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Item for which the requirement exists" },
+      { name: "ReqDate", type: "Date", note: "Date by which the item is required" },
+      { name: "Qty", type: "Decimal", note: "Required quantity in inventory unit" },
+      { name: "InventDimId", type: "String", fkTarget: "InventDim.InventDimId", note: "Inventory dimensions (site, warehouse) for the requirement" },
+      { name: "RefType", type: "Enum", note: "Source reference type: Sales, Production, Project, Transfer, etc." },
+      { name: "RefId", type: "String", note: "Natural key of the source document (e.g. SalesId, ProjId) creating this requirement" },
     ],
   },
 
@@ -5432,6 +5667,23 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  CostCalculationResult: {
+    name: "CostCalculationResult",
+    description: "Cost calculation result — stores the output of a BOM/route cost calculation for an item or production order. Each row holds one cost component line (material, labor, overhead, subcontracting) broken down by cost group and cost version. Used to review estimated vs. realised production costs.",
+    module: "Cost Management / Production Control",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/cost-management/bom-calculations",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Item for which the cost was calculated" },
+      { name: "CostingVersionId", type: "String", note: "FK to the costing version containing the cost data" },
+      { name: "CostGroupId", type: "String", note: "Cost group classifying this cost line (Material, Labor, Overhead, etc.)" },
+      { name: "CalcType", type: "Enum", note: "Calculation type: 0=Standard, 1=Realized — distinguishes estimates from actuals" },
+      { name: "CostAmount", type: "Decimal", note: "Calculated cost amount for this component line" },
+      { name: "Qty", type: "Decimal", note: "Quantity the cost amount is based on" },
+      { name: "InventDimId", type: "String", fkTarget: "InventDim.InventDimId", note: "Inventory dimension (site/warehouse) the cost applies to" },
+    ],
+  },
+
   // ── PROJ tables ──────────────────────────────
   ProjTable: {
     name: "ProjTable",
@@ -5447,6 +5699,24 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "Status", type: "int32", note: "Enum: 1=InProcess, 2=Finished, 3=Postponed — controls whether new transactions can be posted" },
       { name: "StartDate", type: "date", note: "Planned project start date" },
       { name: "EndDate", type: "date", note: "Planned project end / completion date" },
+    ],
+  },
+
+  ProjQuotationTable: {
+    name: "ProjQuotationTable",
+    description: "Project quotation header — a sales quotation issued for project-based work. Captures the customer, estimated revenue, probability of winning, and links to the billing contract (ProjInvoiceId). When won, the quotation is confirmed into a project contract and project. Equivalent to a project-type SalesQuotationTable.",
+    module: "Project Management and Accounting",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/project-operations/sales/create-project-quotations",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "QuotationId", type: "String", note: "Natural key — unique quotation identifier" },
+      { name: "CustAccount", type: "String", fkTarget: "CustTable.AccountNum", note: "FK to the customer the quotation is issued to" },
+      { name: "ProjInvoiceId", type: "String", fkTarget: "ProjContract.ProjInvoiceId", note: "FK to the billing contract this quotation is linked to; nullable before contract creation" },
+      { name: "QuotationDate", type: "Date", note: "Date the quotation was created" },
+      { name: "ExpiryDate", type: "Date", note: "Date after which the quotation expires" },
+      { name: "Probability", type: "Decimal", note: "Probability of winning expressed as a percentage (0–100)" },
+      { name: "Status", type: "Enum", note: "0=Created, 1=Sent, 2=Confirmed (won), 3=Lost, 4=Cancelled" },
+      { name: "TotalAmount", type: "Decimal", note: "Estimated total contract value of the quotation" },
     ],
   },
 
@@ -5512,6 +5782,21 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "ScheduledStartDate", type: "date", note: "Planned start date of the activity" },
       { name: "ScheduledEndDate", type: "date", note: "Planned end date / completion date" },
       { name: "EstimatedEffort", type: "decimal", note: "Planned effort in hours for this task node" },
+    ],
+  },
+
+  ProjWBSLineProperty: {
+    name: "ProjWBSLineProperty",
+    description: "WBS line property — configuration master that controls how a WBS activity's transactions are recognised for cost and revenue. Specifies chargeable/non-chargeable status, billing rule, and whether hours/expenses posted against this line property accrue to WIP or flow directly to P&L.",
+    module: "Project Management and Accounting",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/project-operations/project-accounting/configure-project-categories",
+    fields: [
+      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
+      { name: "LinePropertyId", type: "String", note: "Natural key — line property identifier (e.g. 'Chargeable', 'Non-chargeable', 'Complementary')" },
+      { name: "Description", type: "String", note: "Human-readable description of the line property" },
+      { name: "LinePropertyType", type: "Enum", note: "0=Chargeable, 1=NonChargeable, 2=Complementary, 3=NotAvailable — controls billing and WIP treatment" },
+      { name: "IncludeInInvoice", type: "Enum", note: "Whether transactions with this line property appear on the project invoice" },
+      { name: "AccrueRevenue", type: "Enum", note: "Whether revenue is accrued to WIP for this line property type" },
     ],
   },
 
