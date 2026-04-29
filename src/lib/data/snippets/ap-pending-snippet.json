@@ -1,0 +1,58 @@
+[
+  {
+    "table": "VendInvoiceInfoTable",
+    "module": "Accounts Payable",
+    "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/accountspayable/transactionheader/vendinvoiceinfotable",
+    "urlStatus": 200,
+    "insertAfter": "VendInvoiceJour",
+    "flowStage": { "flowId": "p2p", "stageId": "vendor-invoice" },
+    "relNote": "Pending vendor invoice header before posting; posting creates VendInvoiceJour",
+    "relFields": ["VendInvoiceInfoTable.PurchId = PurchTable.PurchId", "VendInvoiceInfoTable.OrderAccount = VendTable.AccountNum"],
+    "def": {
+      "name": "VendInvoiceInfoTable",
+      "description": "Pending (unposted) vendor invoice header; the AP equivalent of CustInvoiceTable. Captures the vendor invoice as entered or received before it is posted to the ledger. After posting, header data moves to VendInvoiceJour.",
+      "module": "Accounts Payable",
+      "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/accountspayable/transactionheader/vendinvoiceinfotable",
+      "fields": [
+        { "name": "RecId",             "type": "Int64",   "note": "Surrogate primary key" },
+        { "name": "ParmId",            "type": "String",  "note": "Internal parameter key linking this header to its VendInvoiceInfoLine rows and the posting session" },
+        { "name": "PurchId",           "type": "String",  "fkTarget": "PurchTable.PurchId", "note": "Purchase order being invoiced; null for non-PO (standalone) vendor invoices" },
+        { "name": "OrderAccount",      "type": "String",  "fkTarget": "VendTable.AccountNum", "note": "Vendor account that submitted the invoice" },
+        { "name": "InvoiceAccount",    "type": "String",  "fkTarget": "VendTable.AccountNum", "note": "Vendor account to be invoiced (may differ from OrderAccount for intercompany)" },
+        { "name": "DocumentNum",       "type": "String",  "note": "Vendor's invoice document number; used for duplicate-invoice detection" },
+        { "name": "DocumentDate",      "type": "Date",    "note": "Date on the vendor's invoice document" },
+        { "name": "CurrencyCode",      "type": "String",  "note": "Currency code for all monetary amounts on this invoice" },
+        { "name": "MatchStatus",       "type": "Int32",   "note": "Enum: invoice-to-PO matching status (Passed, Failed, Not applicable, etc.)" },
+        { "name": "Approved",          "type": "Int32",   "note": "1 if the invoice has been approved for posting; 0 if pending review" }
+      ]
+    }
+  },
+  {
+    "table": "VendInvoiceInfoLine",
+    "module": "Accounts Payable",
+    "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/accountspayable/transactionline/vendinvoiceinfoline",
+    "urlStatus": 200,
+    "insertAfter": "VendInvoiceInfoTable",
+    "flowStage": { "flowId": "p2p", "stageId": "vendor-invoice" },
+    "relNote": "Pending vendor invoice line; FK to VendInvoiceInfoTable header via ParmId",
+    "relFields": ["VendInvoiceInfoLine.ParmId = VendInvoiceInfoTable.ParmId", "VendInvoiceInfoLine.PurchLineRecId = PurchLine.RecId"],
+    "def": {
+      "name": "VendInvoiceInfoLine",
+      "description": "Individual line on a pending (unposted) vendor invoice; the AP equivalent of CustInvoiceLine. Each row holds one invoiced item or procurement category with quantity, price, and accounting. After posting, line data moves to VendInvoiceTrans.",
+      "module": "Accounts Payable",
+      "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/accountspayable/transactionline/vendinvoiceinfoline",
+      "fields": [
+        { "name": "RecId",              "type": "Int64",   "note": "Surrogate primary key" },
+        { "name": "ParmId",             "type": "String",  "fkTarget": "VendInvoiceInfoTable.ParmId", "note": "FK to the parent pending invoice header via the posting session parameter key" },
+        { "name": "ItemId",             "type": "String",  "fkTarget": "InventTable.ItemId", "note": "Item number on this invoice line; null for procurement-category-only lines" },
+        { "name": "ProcurementCategory","type": "Int64",   "fkTarget": "EcoResCategory.RecId", "note": "Procurement category for non-item (expense) invoice lines" },
+        { "name": "LineAmount",         "type": "Decimal", "note": "Net line amount (qty x price minus discounts) in the invoice currency" },
+        { "name": "PurchPrice",         "type": "Decimal", "note": "Unit purchase price from the PO or entered manually" },
+        { "name": "ReceiveNow",         "type": "Decimal", "note": "Quantity being invoiced in purchase units (the 'update now' quantity)" },
+        { "name": "InventTransId",      "type": "String",  "fkTarget": "InventTransOrigin.InventTransId", "note": "Inventory transaction ID linking to the physical receipt for item-based lines" },
+        { "name": "PurchLineRecId",     "type": "Int64",   "fkTarget": "PurchLine.RecId", "note": "FK to the purchase order line being invoiced" },
+        { "name": "DefaultDimension",   "type": "Int64",   "fkTarget": "DimensionAttributeValueSet.RecId", "note": "Default financial dimensions for this invoice line" }
+      ]
+    }
+  }
+]

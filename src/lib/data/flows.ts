@@ -150,7 +150,7 @@ export const flows: Flow[] = [
           'SalesTable.InvoiceAccount ≠ CustAccount — the invoice goes to a different customer than the order',
         ],
         prerequisites: ['Released product (InventTable)', 'Site and warehouse configured'],
-        tables: ['SalesTable', 'SalesLine', 'CustTable', 'InventDim', 'InventTable'],
+        tables: ['SalesTable', 'SalesLine', 'CustTable', 'InventDim', 'InventTable', 'SalesAgreementTable', 'SalesAgreementLine', 'CustConfirmJour', 'CustConfirmTrans'],
         relations: [
           {
             from: 'SalesTable',
@@ -175,6 +175,30 @@ export const flows: Flow[] = [
             to: 'InventDim',
             fields: ['SalesLine.InventDimId → InventDim.InventDimId'],
             note: 'InventDimId is a system-generated hash that encodes the combination of site, warehouse, batch, serial, and tracking dimensions for the line',
+          },
+          {
+            from: 'SalesTable',
+            to: 'SalesAgreementTable',
+            fields: ['SalesTable.Agreement = SalesAgreementTable.RecId'],
+            note: 'A sales order can be released against a sales agreement; SalesTable.Agreement FK references SalesAgreementTable.RecId to inherit agreed pricing and quantity commitments',
+          },
+          {
+            from: 'SalesAgreementLine',
+            to: 'SalesAgreementTable',
+            fields: ['SalesAgreementLine.SalesAgreementId = SalesAgreementTable.SalesAgreementId'],
+            note: 'Each SalesAgreementLine specifies a quantity or value commitment for one item under the parent SalesAgreementTable',
+          },
+          {
+            from: 'CustConfirmJour',
+            to: 'SalesTable',
+            fields: ['CustConfirmJour.SalesId = SalesTable.SalesId'],
+            note: 'Posting a sales order confirmation creates a CustConfirmJour header with CustConfirmTrans lines',
+          },
+          {
+            from: 'CustConfirmTrans',
+            to: 'CustConfirmJour',
+            fields: ['CustConfirmTrans.ConfirmId = CustConfirmJour.ConfirmId', 'CustConfirmTrans.SalesId = SalesTable.SalesId'],
+            note: 'Line detail for a sales order confirmation; one row per confirmed order line',
           },
         ],
         approvals: ['Credit check or order approval workflow'],
@@ -205,7 +229,7 @@ export const flows: Flow[] = [
           'Location directive not covering the item type or zone',
         ],
         prerequisites: ['Location directives', 'Work templates', 'Wave templates'],
-        tables: ['WHSWorkTable', 'WHSWorkLine', 'WHSShipment', 'WHSLoadTable', 'InventTrans'],
+        tables: ['WHSWorkTable', 'WHSWorkLine', 'WHSShipment', 'WHSLoadTable', 'InventTrans', 'CustPackingSlipJour', 'CustPackingSlipTrans'],
         relations: [
           {
             from: 'WHSWorkLine',
@@ -237,6 +261,18 @@ export const flows: Flow[] = [
             fields: ['Linked via ItemId + InventDimId + work context (no direct FK)'],
             note: 'Picking writes InventTrans records; StatusIssue goes Picked → Sold when the invoice is posted',
           },
+          {
+            from: 'CustPackingSlipJour',
+            to: 'SalesTable',
+            fields: ['CustPackingSlipJour.SalesId = SalesTable.SalesId'],
+            note: 'Posted delivery note header created when goods are physically shipped to the customer; has financial impact on inventory (COGS posting)',
+          },
+          {
+            from: 'CustPackingSlipTrans',
+            to: 'CustPackingSlipJour',
+            fields: ['CustPackingSlipTrans.PackingSlipId = CustPackingSlipJour.PackingSlipId', 'CustPackingSlipTrans.SalesId = SalesTable.SalesId'],
+            note: 'Line detail for a delivery note; one row per shipped item line, links to InventTrans for inventory tracking',
+          },
         ],
       },
       {
@@ -261,7 +297,7 @@ export const flows: Flow[] = [
           'CustInvoiceTable (pending/unposted) vs CustInvoiceJour (posted) — two different tables, easy to confuse in extensions',
         ],
         prerequisites: ['Customer posting profiles', 'Sales tax codes and groups'],
-        tables: ['CustInvoiceJour', 'CustInvoiceTrans', 'CustTrans', 'TaxTrans', 'LedgerTrans'],
+        tables: ['CustInvoiceJour', 'CustInvoiceTrans', 'CustTrans', 'TaxTrans', 'LedgerTrans', 'TaxTable', 'TaxGroupHeading', 'TaxItemGroupHeading'],
         relations: [
           {
             from: 'CustInvoiceJour',
@@ -293,6 +329,24 @@ export const flows: Flow[] = [
             fields: ['TaxTrans.Voucher = CustTrans.Voucher'],
             note: 'Tax transactions share the same voucher number as the AR customer transaction',
           },
+          {
+            from: 'TaxTrans',
+            to: 'TaxTable',
+            fields: ['TaxTrans.TaxCode = TaxTable.TaxCode'],
+            note: 'Tax code (TaxTable) is assigned to SalesLine and CustInvoiceLine via TaxGroup; TaxTrans.TaxCode references TaxTable.TaxCode for each posted tax transaction',
+          },
+          {
+            from: 'CustTable',
+            to: 'TaxGroupHeading',
+            fields: ['CustTable.TaxGroup = TaxGroupHeading.TaxGroup', 'SalesLine.TaxGroup = TaxGroupHeading.TaxGroup'],
+            note: 'Sales tax group (TaxGroupHeading) is assigned to a customer, vendor, or order header; TaxGroup field on SalesLine/CustInvoiceLine references TaxGroupHeading.TaxGroup',
+          },
+          {
+            from: 'InventTable',
+            to: 'TaxItemGroupHeading',
+            fields: ['InventTable.TaxItemGroupId = TaxItemGroupHeading.TaxItemGroup', 'SalesLine.TaxItemGroup = TaxItemGroupHeading.TaxItemGroup'],
+            note: 'Item sales tax group (TaxItemGroupHeading) is assigned to items or order lines; TaxItemGroup field on SalesLine/CustInvoiceLine references TaxItemGroupHeading.TaxItemGroup',
+          },
         ],
         approvals: ['Invoice review workflow (optional)'],
       },
@@ -321,7 +375,7 @@ export const flows: Flow[] = [
           'Bank reconciliation timing: payment posted but not yet matched on bank statement',
         ],
         prerequisites: ['Bank account (BankAccountTable)', 'Method of payment'],
-        tables: ['CustTrans', 'CustSettlement', 'LedgerJournalTable', 'LedgerJournalTrans', 'BankAccountTable'],
+        tables: ['CustTrans', 'CustSettlement', 'LedgerJournalTable', 'LedgerJournalTrans', 'BankAccountTable', 'BankAccountTrans', 'CashDisc'],
         relations: [
           {
             from: 'LedgerJournalTrans',
@@ -349,6 +403,18 @@ export const flows: Flow[] = [
             to: 'BankAccountTable',
             fields: ['LedgerJournalTrans.OffsetAccountType = Bank', 'LedgerJournalTrans.OffsetLedgerDimension → BankAccountTable.RecId'],
             note: 'Payment journal line specifies which bank account receives the cash',
+          },
+          {
+            from: 'BankAccountTrans',
+            to: 'BankAccountTable',
+            fields: ['BankAccountTrans.AccountId = BankAccountTable.AccountId', 'BankAccountTrans.Voucher = GeneralJournalEntry.Voucher'],
+            note: 'Each payment journal posting creates a BankAccountTrans row against the bank account; links to BankAccountTable (the account), LedgerJournalTrans (the journal line), and voucher → GeneralJournalEntry',
+          },
+          {
+            from: 'CustTrans',
+            to: 'CashDisc',
+            fields: ['CustTrans.CashDiscCode = CashDisc.CashDiscCode', 'VendTrans.CashDiscCode = CashDisc.CashDiscCode'],
+            note: 'Cash discount schedule defining % discount if paid within N days; referenced by CustTrans and VendTrans during settlement',
           },
         ],
       },
@@ -397,7 +463,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Posting profile not set', 'Vendor delivery terms missing'],
         prerequisites: ['Vendor, terms, charges, taxes'],
-        tables: ['PurchTable', 'PurchLine', 'VendTable', 'TaxGroup', 'ChargesSetup'],
+        tables: ['PurchTable', 'PurchLine', 'VendTable', 'TaxGroup', 'ChargesSetup', 'PurchAgreementTable', 'PurchAgreementLine'],
         relations: [
           {
             from: 'PurchTable',
@@ -410,7 +476,19 @@ export const flows: Flow[] = [
             to: 'InventTable',
             note: 'PO line references released product',
             fields: ['PurchLine.ItemId = InventTable.ItemId']
-          }
+          },
+          {
+            from: 'PurchTable',
+            to: 'PurchAgreementTable',
+            fields: ['PurchTable.Agreement = PurchAgreementTable.RecId'],
+            note: 'A purchase order can be released against a purchase agreement; PurchTable.Agreement FK references PurchAgreementTable.RecId to inherit agreed pricing',
+          },
+          {
+            from: 'PurchAgreementLine',
+            to: 'PurchAgreementTable',
+            fields: ['PurchAgreementLine.PurchAgreementId = PurchAgreementTable.PurchAgreementId'],
+            note: 'Each PurchAgreementLine specifies a quantity or value commitment for one item under the parent PurchAgreementTable',
+          },
         ],
         approvals: ['PO approval workflow']
       },
@@ -444,7 +522,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Tax code mismatch', 'Posting profile missing', '3-way match failed'],
         prerequisites: ['Vendor posting profiles', 'Tax groups'],
-        tables: ['VendInvoiceJour', 'VendInvoiceTrans', 'VendTrans', 'TaxTrans', 'LedgerTrans'],
+        tables: ['VendInvoiceJour', 'VendInvoiceTrans', 'VendTrans', 'TaxTrans', 'LedgerTrans', 'VendInvoiceInfoTable', 'VendInvoiceInfoLine'],
         relations: [
           {
             from: 'VendInvoiceTrans',
@@ -457,7 +535,19 @@ export const flows: Flow[] = [
             to: 'VendTrans',
             note: 'Posting creates vendor transactions',
             fields: ['VendInvoiceJour.InvoiceId → VendTrans.Invoice', 'VendTrans.Voucher from posting']
-          }
+          },
+          {
+            from: 'VendInvoiceInfoTable',
+            to: 'PurchTable',
+            fields: ['VendInvoiceInfoTable.PurchId = PurchTable.PurchId', 'VendInvoiceInfoTable.OrderAccount = VendTable.AccountNum'],
+            note: 'Pending vendor invoice header before posting; posting creates VendInvoiceJour',
+          },
+          {
+            from: 'VendInvoiceInfoLine',
+            to: 'VendInvoiceInfoTable',
+            fields: ['VendInvoiceInfoLine.ParmId = VendInvoiceInfoTable.ParmId', 'VendInvoiceInfoLine.PurchLineRecId = PurchLine.RecId'],
+            note: 'Pending vendor invoice line; FK to VendInvoiceInfoTable header via ParmId',
+          },
         ],
         approvals: ['Invoice approval workflow']
       },
@@ -659,7 +749,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Dimension group wrong for scenario', 'Tracking not aligned with WMS'],
         prerequisites: ['Storage/tracking dimension groups', 'Item model group'],
-        tables: ['InventTable', 'InventTableModule', 'InventModelGroup', 'InventDim', 'EcoResProduct'],
+        tables: ['InventTable', 'InventTableModule', 'InventModelGroup', 'InventDim', 'EcoResProduct', 'EcoResCategory', 'EcoResCategoryHierarchy', 'InventItemGroup'],
         relations: [
           {
             from: 'InventTable',
@@ -678,6 +768,18 @@ export const flows: Flow[] = [
             to: 'InventModelGroup',
             note: 'Determines costing method (FIFO/StdCost/etc.) and physical/financial posting policy',
             fields: ['InventTable.ModelGroupId → InventModelGroup.ModelGroupId'],
+          },
+          {
+            from: 'EcoResCategory',
+            to: 'EcoResCategoryHierarchy',
+            fields: ['EcoResCategory.CategoryHierarchy = EcoResCategoryHierarchy.RecId'],
+            note: 'Product category node in a hierarchy; products assigned via EcoResProductCategory',
+          },
+          {
+            from: 'InventTable',
+            to: 'InventItemGroup',
+            fields: ['InventTable.ItemGroupId = InventItemGroup.ItemGroupId'],
+            note: 'Item group controls inventory posting profile (COGS, variance accounts) and tax item groups per legal entity',
           },
         ],
       },
@@ -987,7 +1089,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Ledger calendar closed', 'Posting layers misused'],
         prerequisites: ['Ledger, calendars, currencies', 'Dimensions'],
-        tables: ['Ledger', 'LedgerCalendar', 'Currency', 'DimensionHierarchy', 'DimensionAttributeValueCombination'],
+        tables: ['Ledger', 'LedgerCalendar', 'Currency', 'DimensionHierarchy', 'DimensionAttributeValueCombination', 'CompanyInfo', 'OMOperatingUnit'],
         relations: [
           {
             from: 'MainAccount',
@@ -1013,6 +1115,18 @@ export const flows: Flow[] = [
             note: 'Legal entity ledger references its fiscal calendar, governing which periods are available for posting',
             fields: ['Ledger.FiscalCalendar → FiscalCalendar.RecId'],
           },
+          {
+            from: 'Ledger',
+            to: 'CompanyInfo',
+            fields: ['Ledger.PrimaryForLegalEntity = CompanyInfo.RecId', 'GeneralJournalEntry.DataAreaId = CompanyInfo.DataArea'],
+            note: 'Legal entity configuration record — one row per company (DataAreaId) in the D365FO instance. Stores company name, registration numbers, VAT ID, address, and primary contact information.',
+          },
+          {
+            from: 'DimensionAttributeValue',
+            to: 'OMOperatingUnit',
+            fields: ['DimensionAttributeValue.EntityInstance = OMOperatingUnit.RecId'],
+            note: 'Generic operating unit table — used as financial dimension values for BusinessUnit, Department, CostCenter, and similar org unit types.',
+          },
         ],
       },
       {
@@ -1029,7 +1143,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Approval workflow missing', 'Posting profile errors'],
         prerequisites: ['Journal names', 'Approval workflow (optional)'],
-        tables: ['LedgerJournalTable', 'LedgerJournalTrans', 'LedgerAllocationRule', 'LedgerTrans'],
+        tables: ['LedgerJournalTable', 'LedgerJournalTrans', 'LedgerAllocationRule', 'LedgerTrans', 'GeneralJournalEntry', 'GeneralJournalAccountEntry'],
         relations: [
           { from: 'LedgerJournalTrans', to: 'LedgerJournalTable', note: 'Lines tied to journal header', fields: ['LedgerJournalTrans.JournalNum → LedgerJournalTable.JournalNum'] },
           {
@@ -1037,7 +1151,19 @@ export const flows: Flow[] = [
             to: 'LedgerTrans',
             note: 'Posting creates ledger entries',
             fields: ['LedgerJournalTrans.Voucher = LedgerTrans.Voucher', 'LedgerJournalTrans.Account = LedgerTrans.AccountNum']
-          }
+          },
+          {
+            from: 'GeneralJournalAccountEntry',
+            to: 'GeneralJournalEntry',
+            fields: ['GeneralJournalAccountEntry.GeneralJournalEntry = GeneralJournalEntry.RecId'],
+            note: 'Each posted GL voucher creates one GeneralJournalEntry header; GeneralJournalAccountEntry holds the debit/credit lines',
+          },
+          {
+            from: 'GeneralJournalAccountEntry',
+            to: 'DimensionAttributeValueCombination',
+            fields: ['GeneralJournalAccountEntry.LedgerDimension = DimensionAttributeValueCombination.RecId'],
+            note: 'Individual debit/credit line on a posted GL voucher; FK to GeneralJournalEntry header and to DimensionAttributeValueCombination for the ledger account',
+          },
         ],
         approvals: ['Journal approval workflow']
       },
@@ -1454,6 +1580,151 @@ export const tableDefs: Record<string, TableDef> = {
       },
     ],
   },
+
+  DirPartyTable: {
+    name: "DirPartyTable",
+    description: "Global Address Book party master — stores parties (customers, vendors, workers, organizations) used across modules.",
+    module: "Global Address Book",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/common/gab/main/dirpartytable",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "PartyNumber",
+        type: "String",
+        note: "Unique party identifier",
+      },
+      {
+        name: "Name",
+        type: "String",
+        note: "Primary display name for the party",
+      },
+      {
+        name: "PrimaryAddressLocation",
+        type: "Int64",
+        fkTarget: "LogisticsLocation.RecId",
+        note: "FK to primary address location (LogisticsLocation)",
+      },
+      {
+        name: "PrimaryContactEmail",
+        type: "String",
+        note: "Primary email address (denormalised)",
+      },
+      {
+        name: "PrimaryContactPhone",
+        type: "String",
+        note: "Primary phone number (denormalised)",
+      },
+      {
+        name: "InstanceRelationType",
+        type: "Int64",
+        note: "Internal party type indicator (organization, person, etc.)",
+      },
+      {
+        name: "DataAreaId",
+        type: "String",
+        note: "Legal entity / partition identifier",
+      },
+    ],
+  },
+
+  LogisticsPostalAddress: {
+    name: "LogisticsPostalAddress",
+    description: "Postal address records linked into the location framework and party locations; supports international address parts and validity dates.",
+    module: "Global Address Book",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/common/gab/main/logisticspostaladdress",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "Address",
+        type: "String",
+        note: "Full street address / free-text address",
+      },
+      {
+        name: "City",
+        type: "String",
+        note: "City / locality",
+      },
+      {
+        name: "CountryRegionId",
+        type: "String",
+        note: "ISO country/region code",
+      },
+      {
+        name: "ZipCode",
+        type: "String",
+        note: "Postal / ZIP code",
+      },
+      {
+        name: "Location",
+        type: "Int64",
+        fkTarget: "LogisticsLocation.RecId",
+        note: "FK to LogisticsLocation record (location framework)",
+      },
+      {
+        name: "ValidFrom",
+        type: "Date",
+        note: "Address valid-from date",
+      },
+      {
+        name: "ValidTo",
+        type: "Date",
+        note: "Address valid-to date (nullable)",
+      },
+    ],
+  },
+
+  LogisticsElectronicAddress: {
+    name: "LogisticsElectronicAddress",
+    description: "Electronic contact methods (email, phone, IM, URL) attached to parties/locations; supports role flags and privacy indicators.",
+    module: "Global Address Book",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/common/gab/main/logisticselectronicaddress",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "Type",
+        type: "Int32",
+        note: "Enum: Email, Phone, URL, Fax, etc.",
+      },
+      {
+        name: "Locator",
+        type: "String",
+        note: "The actual address/number (email addr, phone number, URL)",
+      },
+      {
+        name: "IsPrimary",
+        type: "Int32",
+        note: "Primary contact flag",
+      },
+      {
+        name: "IsPrivate",
+        type: "Int32",
+        note: "Privacy flag limiting visibility to the owning party",
+      },
+      {
+        name: "Location",
+        type: "Int64",
+        fkTarget: "LogisticsLocation.RecId",
+        note: "FK to LogisticsLocation if associated with a location",
+      },
+      {
+        name: "ElectronicAddressRoles",
+        type: "String",
+        note: "Comma-separated roles (Billing, Shipping, Notification)",
+      },
+    ],
+  },
   PriceDiscTable: {
     name: "PriceDiscTable",
     description: "Posted (active) trade agreement lines storing approved prices and discounts for customer\u2013item combinations.",
@@ -1701,6 +1972,109 @@ export const tableDefs: Record<string, TableDef> = {
         name: "DeliveryDate",
         type: "Date",
         note: "Requested delivery date; drives ATP/CTP promise date calculations.",
+      },
+    ],
+  },
+
+  SalesAgreementTable: {
+    name: "SalesAgreementTable",
+    description: "Sales agreement (blanket order) header table. Each row defines a long-running commitment between the company and a customer for specified goods or value, with effective and expiry dates. Sales orders released against the agreement inherit negotiated prices and discounts, and consumed quantity/value is tracked against the committed totals. Not present in the CDM schema; see the D365 Supply Chain documentation for field reference.",
+    module: "Sales and Marketing",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/sales-marketing/sales-agreements",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key; referenced by SalesTable.Agreement",
+      },
+      {
+        name: "SalesAgreementId",
+        type: "String",
+        note: "Natural primary key — agreement number, auto-generated by the number sequence",
+      },
+      {
+        name: "OrderAccount",
+        type: "String",
+        fkTarget: "CustTable.AccountNum",
+        note: "Customer account number party to this agreement",
+      },
+      {
+        name: "CurrencyCode",
+        type: "String",
+        fkTarget: "Currency.CurrencyCode",
+        note: "Agreement currency; committed amounts are expressed in this currency",
+      },
+      {
+        name: "EffectiveDate",
+        type: "Date",
+        note: "Date from which the agreement is valid; orders can only be released after this date",
+      },
+      {
+        name: "ExpirationDate",
+        type: "Date",
+        note: "Date after which the agreement expires; orders cannot be released against an expired agreement",
+      },
+      {
+        name: "Status",
+        type: "Enum",
+        note: "Agreement status enum: 0=On hold, 1=Effective, 2=Closed — controls whether new orders can be released",
+      },
+      {
+        name: "AgreementClassification",
+        type: "Int64",
+        fkTarget: "AgreementClassification.RecId",
+        note: "FK to the agreement classification defining the type and commitment method (quantity vs. value)",
+      },
+    ],
+  },
+
+  SalesAgreementLine: {
+    name: "SalesAgreementLine",
+    description: "Sales agreement commitment line. Each row represents one item-level commitment under a SalesAgreementTable header, specifying either a quantity commitment (e.g. 1000 units of item X) or a value commitment (e.g. £50,000 of any item). Released sales order lines consume committed quantity/amount and the system tracks fulfilment progress. Not present in the CDM schema.",
+    module: "Sales and Marketing",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/sales-marketing/sales-agreements",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "SalesAgreementId",
+        type: "String",
+        fkTarget: "SalesAgreementTable.SalesAgreementId",
+        note: "FK to the parent agreement header",
+      },
+      {
+        name: "LineNum",
+        type: "Decimal",
+        note: "Line sequence number within the agreement",
+      },
+      {
+        name: "ItemId",
+        type: "String",
+        fkTarget: "InventTable.ItemId",
+        note: "Item for this commitment; empty for value-only (non-item-specific) commitment lines",
+      },
+      {
+        name: "UnitId",
+        type: "String",
+        note: "Unit of measure for the committed quantity (e.g. 'pcs', 'kg'); relevant for quantity commitments",
+      },
+      {
+        name: "CommittedQuantity",
+        type: "Decimal",
+        note: "Total quantity committed; 0 for value-only lines. Released order lines decrement the remaining quantity.",
+      },
+      {
+        name: "CommittedAmount",
+        type: "Decimal",
+        note: "Total value committed in the agreement currency; 0 for quantity-only lines",
+      },
+      {
+        name: "MaxIsEnforced",
+        type: "Enum",
+        note: "Controls whether the committed quantity/amount is a hard maximum (1=enforced) or a soft target (0=not enforced)",
       },
     ],
   },
@@ -2132,6 +2506,259 @@ export const tableDefs: Record<string, TableDef> = {
       },
     ],
   },
+
+  CustConfirmJour: {
+    name: "CustConfirmJour",
+    description: "Posted sales order confirmation header; a purely documentary record with no financial (GL) impact, capturing the confirmed prices, quantities, and terms at the point of order acknowledgement.",
+    module: "Accounts Receivable",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/salesandmarketing/transaction/custconfirmjour",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "ConfirmId",
+        type: "String",
+        note: "Confirmation document number; unique identifier for this posted confirmation",
+      },
+      {
+        name: "SalesId",
+        type: "String",
+        fkTarget: "SalesTable.SalesId",
+        note: "Source sales order; links the confirmation back to the order",
+      },
+      {
+        name: "ConfirmDate",
+        type: "Date",
+        note: "Date on which the confirmation was posted",
+      },
+      {
+        name: "ConfirmAmount",
+        type: "Decimal",
+        note: "Total confirmed amount on the document",
+      },
+      {
+        name: "OrderAccount",
+        type: "String",
+        fkTarget: "CustTable.AccountNum",
+        note: "Customer account number that placed the order",
+      },
+      {
+        name: "InvoiceAccount",
+        type: "String",
+        fkTarget: "CustTable.AccountNum",
+        note: "Customer account to which the eventual invoice will be billed",
+      },
+      {
+        name: "CurrencyCode",
+        type: "String",
+        note: "Currency code for all monetary amounts on this confirmation",
+      },
+      {
+        name: "DeliveryName",
+        type: "String",
+        note: "Name of the delivery address for the shipment",
+      },
+      {
+        name: "PurchaseOrder",
+        type: "String",
+        note: "Customer's purchase order reference number",
+      },
+    ],
+  },
+
+  CustConfirmTrans: {
+    name: "CustConfirmTrans",
+    description: "Individual line on a posted sales order confirmation; one row per confirmed sales line, holding the confirmed quantity, price, item, and inventory dimensions.",
+    module: "Accounts Receivable",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/salesandmarketing/transaction/custconfirmtrans",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "ConfirmId",
+        type: "String",
+        fkTarget: "CustConfirmJour.ConfirmId",
+        note: "FK to the parent confirmation header document",
+      },
+      {
+        name: "SalesId",
+        type: "String",
+        fkTarget: "SalesTable.SalesId",
+        note: "Source sales order",
+      },
+      {
+        name: "ItemId",
+        type: "String",
+        fkTarget: "InventTable.ItemId",
+        note: "Item number on this confirmed line",
+      },
+      {
+        name: "Qty",
+        type: "Decimal",
+        note: "Confirmed quantity in sales units",
+      },
+      {
+        name: "InventQty",
+        type: "Decimal",
+        note: "Confirmed quantity in inventory units",
+      },
+      {
+        name: "SalesPrice",
+        type: "Decimal",
+        note: "Unit price at the time of confirmation",
+      },
+      {
+        name: "LineAmount",
+        type: "Decimal",
+        note: "Net line amount (qty x price minus discounts)",
+      },
+      {
+        name: "InventDimId",
+        type: "String",
+        fkTarget: "InventDim.InventDimId",
+        note: "Inventory dimension combination (site, warehouse, batch, etc.)",
+      },
+      {
+        name: "InventTransId",
+        type: "String",
+        fkTarget: "InventTransOrigin.InventTransId",
+        note: "Inventory transaction ID linking to the underlying inventory movement",
+      },
+    ],
+  },
+
+  CustPackingSlipJour: {
+    name: "CustPackingSlipJour",
+    description: "Posted delivery note (packing slip) header; created when goods are physically shipped from the warehouse. Unlike confirmations, this document has financial impact — it triggers inventory cost-of-goods-sold postings in the GL.",
+    module: "Accounts Receivable",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/salesandmarketing/transaction/custpackingslipjour",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "PackingSlipId",
+        type: "String",
+        note: "Packing slip document number; unique identifier for this posted delivery note",
+      },
+      {
+        name: "SalesId",
+        type: "String",
+        fkTarget: "SalesTable.SalesId",
+        note: "Source sales order; links the delivery note back to the order",
+      },
+      {
+        name: "DeliveryDate",
+        type: "Date",
+        note: "Actual date of physical shipment/delivery",
+      },
+      {
+        name: "OrderAccount",
+        type: "String",
+        fkTarget: "CustTable.AccountNum",
+        note: "Customer account that placed the order",
+      },
+      {
+        name: "InvoiceAccount",
+        type: "String",
+        fkTarget: "CustTable.AccountNum",
+        note: "Customer account to be invoiced",
+      },
+      {
+        name: "LedgerVoucher",
+        type: "String",
+        note: "GL voucher number for the inventory COGS posting triggered by this shipment",
+      },
+      {
+        name: "DocumentDate",
+        type: "Date",
+        note: "Document date on the packing slip (may differ from DeliveryDate)",
+      },
+      {
+        name: "DlvMode",
+        type: "String",
+        fkTarget: "DlvMode.Code",
+        note: "Mode of delivery (e.g. truck, air, courier)",
+      },
+      {
+        name: "SourceDocumentHeader",
+        type: "Int64",
+        note: "FK to the source document header used for accounting framework integration",
+      },
+    ],
+  },
+
+  CustPackingSlipTrans: {
+    name: "CustPackingSlipTrans",
+    description: "Individual line on a posted delivery note (packing slip); one row per shipped item line, holding the delivered quantity, item, inventory dimensions, and the remaining quantity not yet invoiced.",
+    module: "Accounts Receivable",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/salesandmarketing/transaction/custpackingsliptrans",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "PackingSlipId",
+        type: "String",
+        fkTarget: "CustPackingSlipJour.PackingSlipId",
+        note: "FK to the parent packing slip header document",
+      },
+      {
+        name: "SalesId",
+        type: "String",
+        fkTarget: "SalesTable.SalesId",
+        note: "Source sales order",
+      },
+      {
+        name: "ItemId",
+        type: "String",
+        fkTarget: "InventTable.ItemId",
+        note: "Item number on this shipped line",
+      },
+      {
+        name: "Qty",
+        type: "Decimal",
+        note: "Delivered quantity in sales units",
+      },
+      {
+        name: "inventQty",
+        type: "Decimal",
+        note: "Delivered quantity in inventory units",
+      },
+      {
+        name: "Remain",
+        type: "Decimal",
+        note: "Quantity from this packing slip line not yet invoiced",
+      },
+      {
+        name: "InventDimId",
+        type: "String",
+        fkTarget: "InventDim.InventDimId",
+        note: "Inventory dimension combination (site, warehouse, batch, serial, etc.)",
+      },
+      {
+        name: "InventTransId",
+        type: "String",
+        fkTarget: "InventTransOrigin.InventTransId",
+        note: "Inventory transaction ID linking to the physical inventory issue",
+      },
+      {
+        name: "AmountCur",
+        type: "Decimal",
+        note: "Line amount in the transaction currency (used for packing-slip-level valuation)",
+      },
+    ],
+  },
   CustInvoiceTable: {
     name: "CustInvoiceTable",
     description: "Free text invoice header for AR invoices not sourced from a sales order (e.g. recurring charges, service fees). Lines live in CustInvoiceLine. After posting, the header is recorded in CustInvoiceJour.",
@@ -2404,6 +3031,147 @@ export const tableDefs: Record<string, TableDef> = {
       },
     ],
   },
+
+  TaxTable: {
+    name: "TaxTable",
+    description: "Sales tax code setup table. Each row defines one tax code (e.g. 'VAT20') including its calculation method, rate basis, settlement period, and posting account group. Tax codes are the atomic unit of tax calculation; they are collected into sales tax groups (TaxGroupHeading) and item sales tax groups (TaxItemGroupHeading) whose intersection determines which codes actually apply to a transaction.",
+    module: "Tax",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/tax/group/taxtable",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "TaxCode",
+        type: "String",
+        note: "Natural primary key — tax code identifier (e.g. 'VAT20', 'USE_TAX')",
+      },
+      {
+        name: "TaxName",
+        type: "String",
+        note: "Human-readable description of the tax code",
+      },
+      {
+        name: "TaxAccountGroup",
+        type: "String",
+        fkTarget: "TaxLedgerAccountGroup.TaxAccountGroup",
+        note: "FK to the ledger posting account group that defines which GL accounts receive this tax",
+      },
+      {
+        name: "TaxCurrencyCode",
+        type: "String",
+        fkTarget: "Currency.CurrencyCode",
+        note: "Currency in which tax values are expressed for this code",
+      },
+      {
+        name: "TaxPeriod",
+        type: "String",
+        fkTarget: "TaxPeriodHead.TaxPeriod",
+        note: "FK to the settlement period (TaxPeriodHead) controlling when this tax is settled against the authority",
+      },
+      {
+        name: "TaxCalcMethod",
+        type: "Enum",
+        note: "Calculation method enum: 0=Whole amount, 1=Interval, 2=Whole amount per unit, 3=Interval per unit",
+      },
+      {
+        name: "TaxBase",
+        type: "Enum",
+        note: "Tax base enum: determines whether tax is calculated as a percentage of net amount, gross amount, or a fixed amount per unit",
+      },
+      {
+        name: "TaxRoundOff",
+        type: "Decimal",
+        note: "Rounding precision for calculated tax amounts (e.g. 0.01 for cent-level rounding)",
+      },
+      {
+        name: "TaxOnTax",
+        type: "String",
+        fkTarget: "TaxTable.TaxCode",
+        note: "Optional self-referential FK: if set, tax is calculated on top of another tax code (sales tax on sales tax)",
+      },
+    ],
+  },
+
+  TaxGroupHeading: {
+    name: "TaxGroupHeading",
+    description: "Sales tax group header table. Each row defines a named group (e.g. 'EU-B2B', 'DOMESTIC') that represents a set of applicable tax codes for a customer, vendor, or transaction. Tax codes in both the sales tax group and the item sales tax group (TaxItemGroupHeading) are intersected to determine which codes are actually calculated on a given transaction line.",
+    module: "Tax",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/tax/group/taxgroupheading",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "TaxGroup",
+        type: "String",
+        note: "Natural primary key — sales tax group identifier (e.g. 'EU-B2B', 'DOMESTIC')",
+      },
+      {
+        name: "TaxGroupName",
+        type: "String",
+        note: "Human-readable description of the tax group",
+      },
+      {
+        name: "TaxGroupSetup",
+        type: "Enum",
+        note: "Tax direction enum controlling whether this group applies to sales, purchases, or both",
+      },
+      {
+        name: "TaxGroupRounding",
+        type: "Enum",
+        note: "Rounding rule enum applied when summing multiple tax codes within this group",
+      },
+      {
+        name: "TaxPrintDetail",
+        type: "Enum",
+        note: "Controls level of tax detail printed on documents: 0=Summary, 1=Per tax code, 2=Full detail",
+      },
+      {
+        name: "TaxReverseOnCashDisc",
+        type: "Enum",
+        note: "Indicates whether tax is reversed when a cash discount is taken (relevant for VAT jurisdictions)",
+      },
+      {
+        name: "EUTrade_W",
+        type: "Enum",
+        note: "Flags this group as EU intra-community trade for EU sales list reporting purposes",
+      },
+    ],
+  },
+
+  TaxItemGroupHeading: {
+    name: "TaxItemGroupHeading",
+    description: "Item sales tax group table. Each row defines a named group (e.g. 'FULL', 'REDUCED', 'EXEMPT') that classifies items by their tax treatment. Only tax codes present in both the transaction's sales tax group (TaxGroupHeading) and the item's item sales tax group are calculated — this intersection logic drives conditional tax application (e.g. zero-rating exempt goods for EU customers).",
+    module: "Tax",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/tax/group/taxitemgroupheading",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "TaxItemGroup",
+        type: "String",
+        note: "Natural primary key — item sales tax group identifier (e.g. 'FULL', 'REDUCED', 'EXEMPT')",
+      },
+      {
+        name: "Name",
+        type: "String",
+        note: "Human-readable description of the item tax group",
+      },
+      {
+        name: "EUSalesListType",
+        type: "Enum",
+        note: "Classifies EU sales list reporting type for items in this group: 0=None, 1=Item, 2=Service, 3=Investment",
+      },
+    ],
+  },
   CustSettlement: {
     name: "CustSettlement",
     description: "Links an AR invoice transaction to the payment (or other offset) transaction that settles it, recording the settled amount and date.",
@@ -2578,6 +3346,117 @@ export const tableDefs: Record<string, TableDef> = {
       },
     ],
   },
+
+  BankAccountTrans: {
+    name: "BankAccountTrans",
+    description: "Individual bank transaction line — deposits, withdrawals, fees, and corrections posted via payment journals. Each row represents one movement on a bank account and is linked to a GL voucher via the Voucher field.",
+    module: "Cash and Bank Management",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/bank/transaction/bankaccounttrans",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "AccountId",
+        type: "String",
+        fkTarget: "BankAccountTable.AccountId",
+        note: "FK to the bank account this transaction belongs to",
+      },
+      {
+        name: "CurrencyCode",
+        type: "String",
+        fkTarget: "Currency.CurrencyCode",
+        note: "Denominated currency of the transaction",
+      },
+      {
+        name: "TransDate",
+        type: "Date",
+        note: "Date of the bank transaction",
+      },
+      {
+        name: "Voucher",
+        type: "String",
+        note: "Voucher number linking to the GL GeneralJournalEntry",
+      },
+      {
+        name: "AmountCur",
+        type: "Decimal",
+        note: "Transaction amount in the original currency",
+      },
+      {
+        name: "AmountMST",
+        type: "Decimal",
+        note: "Transaction amount in the accounting (home) currency",
+      },
+      {
+        name: "BankTransType",
+        type: "String",
+        note: "Bank transaction type (e.g. Cheque, Transfer, Wire)",
+      },
+      {
+        name: "Reconciled",
+        type: "Int32",
+        note: "Reconciliation status flag (0 = not reconciled, 1 = reconciled)",
+      },
+      {
+        name: "Txt",
+        type: "String",
+        note: "Free-text description or memo on the transaction",
+      },
+    ],
+  },
+
+  CashDisc: {
+    name: "CashDisc",
+    description: "Cash discount terms master — defines the percentage discount and payment window (number of days or months) that a customer can claim by paying early. Referenced by CustTrans and VendTrans during invoice settlement.",
+    module: "Cash and Bank Management",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/bank/group/cashdisc",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "CashDiscCode",
+        type: "String",
+        note: "Primary key — unique code identifying this cash discount schedule",
+      },
+      {
+        name: "Description",
+        type: "String",
+        note: "Human-readable description of the discount terms",
+      },
+      {
+        name: "DiscMethod",
+        type: "Int32",
+        note: "Enum: 0 = Percentage, 1 = Fixed amount",
+      },
+      {
+        name: "Percent",
+        type: "Decimal",
+        note: "Discount percentage offered if paid within the window",
+      },
+      {
+        name: "NumOfDays",
+        type: "Int32",
+        note: "Number of days within which payment must be received to qualify",
+      },
+      {
+        name: "NumOfMonths",
+        type: "Int32",
+        note: "Number of months (alternative to NumOfDays) for the discount window",
+      },
+      {
+        name: "CashDiscCodeNext",
+        type: "String",
+        fkTarget: "CashDisc.CashDiscCode",
+        note: "Optional link to a follow-on discount code for sequential discount tiers",
+      },
+    ],
+  },
   // ── P2P tables ──────────────────────────────
   PurchReqTable: {
     name: "PurchReqTable",
@@ -2646,6 +3525,109 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "CurrencyCode", type: "String", fkTarget: "Currency.CurrencyCode", note: "Transaction currency for the order" },
       { name: "PaymTermId", type: "String", fkTarget: "PaymTerm.PaymTermId", note: "Payment terms inherited from vendor; can be overridden" },
       { name: "DeliveryDate", type: "Date", note: "Requested delivery date on the header" },
+    ],
+  },
+
+  PurchAgreementTable: {
+    name: "PurchAgreementTable",
+    description: "Purchase agreement (blanket purchase order) header table. Each row records a long-running commitment with a vendor to purchase specified goods or value within a date range. Purchase orders released against the agreement inherit negotiated prices and the system tracks how much of the committed quantity/amount has been fulfilled. Not present in the CDM schema; see D365 Supply Chain documentation for field reference.",
+    module: "Procurement and Sourcing",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/procurement/purchase-agreements",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key; referenced by PurchTable.Agreement",
+      },
+      {
+        name: "PurchAgreementId",
+        type: "String",
+        note: "Natural primary key — purchase agreement number, auto-generated by number sequence",
+      },
+      {
+        name: "OrderAccount",
+        type: "String",
+        fkTarget: "VendTable.AccountNum",
+        note: "Vendor account number party to this purchase agreement",
+      },
+      {
+        name: "CurrencyCode",
+        type: "String",
+        fkTarget: "Currency.CurrencyCode",
+        note: "Agreement currency; committed amounts are expressed in this currency",
+      },
+      {
+        name: "EffectiveDate",
+        type: "Date",
+        note: "Date from which the agreement is valid; purchase orders can only be released after this date",
+      },
+      {
+        name: "ExpirationDate",
+        type: "Date",
+        note: "Date after which the agreement expires; purchase orders cannot be released against an expired agreement",
+      },
+      {
+        name: "Status",
+        type: "Enum",
+        note: "Agreement status enum: 0=On hold, 1=Effective, 2=Closed — controls whether new orders can be released",
+      },
+      {
+        name: "AgreementClassification",
+        type: "Int64",
+        fkTarget: "AgreementClassification.RecId",
+        note: "FK to the agreement classification defining commitment method (quantity vs. value)",
+      },
+    ],
+  },
+
+  PurchAgreementLine: {
+    name: "PurchAgreementLine",
+    description: "Purchase agreement commitment line. Each row represents one item-level commitment under a PurchAgreementTable header, specifying either a quantity or a value commitment for a vendor item. Released purchase order lines consume the committed quantity/amount and the system tracks fulfilment against the agreement. Not present in the CDM schema.",
+    module: "Procurement and Sourcing",
+    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/procurement/purchase-agreements",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "PurchAgreementId",
+        type: "String",
+        fkTarget: "PurchAgreementTable.PurchAgreementId",
+        note: "FK to the parent purchase agreement header",
+      },
+      {
+        name: "LineNum",
+        type: "Decimal",
+        note: "Line sequence number within the purchase agreement",
+      },
+      {
+        name: "ItemId",
+        type: "String",
+        fkTarget: "InventTable.ItemId",
+        note: "Item for this commitment; empty for value-only (non-item-specific) commitment lines",
+      },
+      {
+        name: "UnitId",
+        type: "String",
+        note: "Unit of measure for the committed quantity (e.g. 'pcs', 'kg'); relevant for quantity commitments",
+      },
+      {
+        name: "CommittedQuantity",
+        type: "Decimal",
+        note: "Total quantity committed; 0 for value-only lines. Released order lines decrement the remaining quantity.",
+      },
+      {
+        name: "CommittedAmount",
+        type: "Decimal",
+        note: "Total value committed in the agreement currency; 0 for quantity-only lines",
+      },
+      {
+        name: "MaxIsEnforced",
+        type: "Enum",
+        note: "Controls whether the committed quantity/amount is a hard maximum (1=enforced) or a soft target (0=not enforced)",
+      },
     ],
   },
 
@@ -2719,6 +3701,133 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  VendInvoiceInfoTable: {
+    name: "VendInvoiceInfoTable",
+    description: "Pending (unposted) vendor invoice header; the AP equivalent of CustInvoiceTable. Captures the vendor invoice as entered or received before it is posted to the ledger. After posting, header data moves to VendInvoiceJour.",
+    module: "Accounts Payable",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/accountspayable/transactionheader/vendinvoiceinfotable",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "ParmId",
+        type: "String",
+        note: "Internal parameter key linking this header to its VendInvoiceInfoLine rows and the posting session",
+      },
+      {
+        name: "PurchId",
+        type: "String",
+        fkTarget: "PurchTable.PurchId",
+        note: "Purchase order being invoiced; null for non-PO (standalone) vendor invoices",
+      },
+      {
+        name: "OrderAccount",
+        type: "String",
+        fkTarget: "VendTable.AccountNum",
+        note: "Vendor account that submitted the invoice",
+      },
+      {
+        name: "InvoiceAccount",
+        type: "String",
+        fkTarget: "VendTable.AccountNum",
+        note: "Vendor account to be invoiced (may differ from OrderAccount for intercompany)",
+      },
+      {
+        name: "DocumentNum",
+        type: "String",
+        note: "Vendor's invoice document number; used for duplicate-invoice detection",
+      },
+      {
+        name: "DocumentDate",
+        type: "Date",
+        note: "Date on the vendor's invoice document",
+      },
+      {
+        name: "CurrencyCode",
+        type: "String",
+        note: "Currency code for all monetary amounts on this invoice",
+      },
+      {
+        name: "MatchStatus",
+        type: "Int32",
+        note: "Enum: invoice-to-PO matching status (Passed, Failed, Not applicable, etc.)",
+      },
+      {
+        name: "Approved",
+        type: "Int32",
+        note: "1 if the invoice has been approved for posting; 0 if pending review",
+      },
+    ],
+  },
+
+  VendInvoiceInfoLine: {
+    name: "VendInvoiceInfoLine",
+    description: "Individual line on a pending (unposted) vendor invoice; the AP equivalent of CustInvoiceLine. Each row holds one invoiced item or procurement category with quantity, price, and accounting. After posting, line data moves to VendInvoiceTrans.",
+    module: "Accounts Payable",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/accountspayable/transactionline/vendinvoiceinfoline",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "ParmId",
+        type: "String",
+        fkTarget: "VendInvoiceInfoTable.ParmId",
+        note: "FK to the parent pending invoice header via the posting session parameter key",
+      },
+      {
+        name: "ItemId",
+        type: "String",
+        fkTarget: "InventTable.ItemId",
+        note: "Item number on this invoice line; null for procurement-category-only lines",
+      },
+      {
+        name: "ProcurementCategory",
+        type: "Int64",
+        fkTarget: "EcoResCategory.RecId",
+        note: "Procurement category for non-item (expense) invoice lines",
+      },
+      {
+        name: "LineAmount",
+        type: "Decimal",
+        note: "Net line amount (qty x price minus discounts) in the invoice currency",
+      },
+      {
+        name: "PurchPrice",
+        type: "Decimal",
+        note: "Unit purchase price from the PO or entered manually",
+      },
+      {
+        name: "ReceiveNow",
+        type: "Decimal",
+        note: "Quantity being invoiced in purchase units (the 'update now' quantity)",
+      },
+      {
+        name: "InventTransId",
+        type: "String",
+        fkTarget: "InventTransOrigin.InventTransId",
+        note: "Inventory transaction ID linking to the physical receipt for item-based lines",
+      },
+      {
+        name: "PurchLineRecId",
+        type: "Int64",
+        fkTarget: "PurchLine.RecId",
+        note: "FK to the purchase order line being invoiced",
+      },
+      {
+        name: "DefaultDimension",
+        type: "Int64",
+        fkTarget: "DimensionAttributeValueSet.RecId",
+        note: "Default financial dimensions for this invoice line",
+      },
+    ],
+  },
+
   VendInvoiceTrans: {
     name: "VendInvoiceTrans",
     description: "Posted vendor invoice lines. One record per invoice line; holds the quantity, price, and tax group posted, cross-referenced to the originating PO line.",
@@ -2789,6 +3898,175 @@ export const tableDefs: Record<string, TableDef> = {
     ],
   },
 
+  GeneralJournalEntry: {
+    name: "GeneralJournalEntry",
+    description: "Posted GL voucher header table. Every financial posting (AP invoice, AR payment, journal entry, etc.) creates exactly one row here, replacing the legacy LedgerTrans table from AX 2009.",
+    module: "General Ledger",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/ledger/transactionheader/generaljournalentry",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "AccountingDate",
+        type: "Date",
+        note: "Date on which the entry is recognised in the GL",
+      },
+      {
+        name: "JournalNumber",
+        type: "String",
+        note: "Subledger journal number (internal posting reference)",
+      },
+      {
+        name: "JournalCategory",
+        type: "Int32",
+        note: "Enum classifying the journal type (daily, payment, etc.)",
+      },
+      {
+        name: "PostingLayer",
+        type: "Int32",
+        note: "Enum: Current=0, Operations=1, Tax=2; separates reporting layers",
+      },
+      {
+        name: "Ledger",
+        type: "Int64",
+        fkTarget: "Ledger.RecId",
+        note: "FK to the Ledger table identifying which ledger this entry posts to",
+      },
+      {
+        name: "SubledgerVoucher",
+        type: "String",
+        note: "Voucher number originating from the subledger posting (e.g. AP invoice voucher)",
+      },
+      {
+        name: "DocumentNumber",
+        type: "String",
+        note: "External document reference number from the source document",
+      },
+      {
+        name: "DocumentDate",
+        type: "Date",
+        note: "Date on the source document (may differ from AccountingDate)",
+      },
+      {
+        name: "FiscalCalendarPeriod",
+        type: "Int64",
+        fkTarget: "FiscalCalendarPeriod.RecId",
+        note: "FK to the fiscal calendar period in which this entry is posted",
+      },
+    ],
+  },
+
+  GeneralJournalAccountEntry: {
+    name: "GeneralJournalAccountEntry",
+    description: "Individual debit or credit line on a posted GL voucher. Each GeneralJournalEntry header has one or more GeneralJournalAccountEntry rows holding the account, amount, posting type, and currency details.",
+    module: "General Ledger",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/ledger/transactionline/generaljournalaccountentry",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "GeneralJournalEntry",
+        type: "Int64",
+        fkTarget: "GeneralJournalEntry.RecId",
+        note: "FK to the voucher header this line belongs to",
+      },
+      {
+        name: "LedgerDimension",
+        type: "Int64",
+        fkTarget: "DimensionAttributeValueCombination.RecId",
+        note: "FK to the resolved account + financial dimensions combination",
+      },
+      {
+        name: "AccountingCurrencyAmount",
+        type: "Decimal",
+        note: "Amount in the accounting (home) currency of the ledger",
+      },
+      {
+        name: "TransactionCurrencyAmount",
+        type: "Decimal",
+        note: "Amount in the original transaction currency",
+      },
+      {
+        name: "ReportingCurrencyAmount",
+        type: "Decimal",
+        note: "Amount in the reporting currency of the ledger",
+      },
+      {
+        name: "PostingType",
+        type: "Int32",
+        note: "Enum indicating the posting type (Ledger, Vendor, Customer, Bank, etc.)",
+      },
+      {
+        name: "IsCredit",
+        type: "Int32",
+        note: "1 if this line is a credit entry; 0 if a debit entry",
+      },
+      {
+        name: "TransactionCurrencyCode",
+        type: "String",
+        note: "ISO 4217 currency code of the transaction currency",
+      },
+      {
+        name: "MainAccount",
+        type: "Int64",
+        fkTarget: "MainAccount.RecId",
+        note: "FK to the MainAccount record (denormalised from LedgerDimension for quick lookup)",
+      },
+    ],
+  },
+
+  DimensionAttributeValueCombination: {
+    name: "DimensionAttributeValueCombination",
+    description: "Stores one resolved set of financial dimension values (e.g. MainAccount=1001, Department=10, CostCenter=CC01). Many transaction tables store a LedgerDimension field (Int64) that is an FK to this table's RecId, which is how financial dimensions are attached to ledger entries.",
+    module: "General Ledger",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/financialdimensions/main/dimensionattributevaluecombination",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key; referenced by LedgerDimension FK fields across the system",
+      },
+      {
+        name: "DisplayValue",
+        type: "String",
+        note: "Concatenated display string of all dimension values (e.g. '1001-DEPT10-CC01')",
+      },
+      {
+        name: "AccountStructure",
+        type: "Int64",
+        fkTarget: "DimensionHierarchy.RecId",
+        note: "FK to the account structure (DimensionHierarchy) defining which dimensions apply",
+      },
+      {
+        name: "MainAccount",
+        type: "Int64",
+        fkTarget: "MainAccount.RecId",
+        note: "FK to the MainAccount record for the primary account segment",
+      },
+      {
+        name: "MainAccountValue",
+        type: "String",
+        note: "Main account segment value (e.g. '1001'), denormalised for quick access",
+      },
+      {
+        name: "LedgerDimensionType",
+        type: "Int32",
+        note: "Enum distinguishing the combination type (full ledger account, default dimension, etc.)",
+      },
+      {
+        name: "DataAreaForCreation",
+        type: "String",
+        note: "Legal entity identifier in which this dimension combination was first created",
+      },
+    ],
+  },
+
   // ── RTR tables ──────────────────────────────
   MainAccount: {
     name: "MainAccount",
@@ -2817,6 +4095,117 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "Name", type: "string", note: "Chart-of-accounts identifier / display name (displayName: 'Chart of accounts')" },
       { name: "Description", type: "string (nullable)", note: "Human-readable description" },
       { name: "MainAccountFormatMask", type: "string (nullable)", note: "Account-number display format mask (e.g., '######')" },
+    ],
+  },
+
+  CompanyInfo: {
+    name: "CompanyInfo",
+    description: "Legal entity master record — one row per company in a D365FO deployment. Holds the company name, DataAreaId (company account), primary postal address, VAT registration number, and contact details. Referenced by Ledger and all transaction tables via DataAreaId.",
+    module: "Organization Administration",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/ledger/main/companyinfo",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "DataArea",
+        type: "String",
+        note: "Primary identifier (company account / DataAreaId) for this legal entity",
+      },
+      {
+        name: "Name",
+        type: "String",
+        note: "Legal entity display name",
+      },
+      {
+        name: "NameAlias",
+        type: "String",
+        note: "Short alias for the company",
+      },
+      {
+        name: "PartyNumber",
+        type: "String",
+        note: "Global address book party number for this legal entity",
+      },
+      {
+        name: "VATNum",
+        type: "String",
+        note: "VAT registration number for this legal entity",
+      },
+      {
+        name: "LanguageId",
+        type: "String",
+        note: "Default language code for the company (e.g. 'en-us')",
+      },
+      {
+        name: "PrimaryAddressLocation",
+        type: "Int64",
+        fkTarget: "LogisticsLocation.RecId",
+        note: "FK to the primary postal address record",
+      },
+      {
+        name: "BranchId",
+        type: "String",
+        note: "Business segment / branch identifier for reporting",
+      },
+      {
+        name: "OrgId",
+        type: "String",
+        note: "Organization ID used in inter-company scenarios",
+      },
+    ],
+  },
+
+  OMOperatingUnit: {
+    name: "OMOperatingUnit",
+    description: "Operating unit (business unit, department, cost centre, retail channel) master. Acts as the dimension value source for organisational financial dimensions. OMOperatingUnitType enum distinguishes the unit type: BusinessUnit, Department, CostCenter, RetailChannel, Warehouse.",
+    module: "Organization Administration",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/common/gab/main/omoperatingunit",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "OMOperatingUnitNumber",
+        type: "String",
+        note: "User-visible code for this operating unit (appears in dimension value lookups)",
+      },
+      {
+        name: "Name",
+        type: "String",
+        note: "Display name of the operating unit",
+      },
+      {
+        name: "OMOperatingUnitType",
+        type: "Int32",
+        note: "Enum: 1 = BusinessUnit, 2 = Department, 3 = CostCenter, 4 = RetailChannel, 5 = Warehouse — determines which financial dimension this unit belongs to",
+      },
+      {
+        name: "PartyNumber",
+        type: "String",
+        note: "Global address book party number for this org unit",
+      },
+      {
+        name: "NameAlias",
+        type: "String",
+        note: "Short alias for the operating unit",
+      },
+      {
+        name: "PrimaryAddressLocation",
+        type: "Int64",
+        fkTarget: "LogisticsLocation.RecId",
+        note: "FK to the primary postal address for this unit",
+      },
+      {
+        name: "HcmWorker",
+        type: "Int64",
+        fkTarget: "HcmWorker.RecId",
+        note: "FK to the manager (HCM Worker) responsible for this operating unit",
+      },
     ],
   },
 
@@ -2986,6 +4375,132 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "InstanceRelationType", type: "int64", note: "Polymorphic type discriminator (EcoResDistinctProduct vs EcoResProductMaster); nullable" },
       { name: "PdsCWProduct", type: "int32", note: "Catch-weight product flag; nullable" },
       { name: "EngChgProductOwnerId", type: "string", note: "Engineering change owner ID; nullable" },
+    ],
+  },
+
+  EcoResCategory: {
+    name: "EcoResCategory",
+    description: "Individual category node within a named hierarchy (e.g. Procurement or Sales). Products are assigned to categories via EcoResProductCategory; the tree structure uses ParentCategory and NestedSetLeft/Right.",
+    module: "Product Information Management",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/productinformationmanagement/main/ecorescategory",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "CategoryHierarchy",
+        type: "Int64",
+        fkTarget: "EcoResCategoryHierarchy.RecId",
+        note: "FK to the parent hierarchy this category belongs to",
+      },
+      {
+        name: "Name",
+        type: "String",
+        note: "Display name of the category node",
+      },
+      {
+        name: "Code",
+        type: "String",
+        note: "Commodity code (e.g. Intrastat/HS code)",
+      },
+      {
+        name: "ParentCategory",
+        type: "Int64",
+        fkTarget: "EcoResCategory.RecId",
+        note: "Recursive FK to parent category; null for root nodes",
+      },
+      {
+        name: "IsActive",
+        type: "Int32",
+        note: "Active flag; inactive categories blocked from selection",
+      },
+      {
+        name: "Level",
+        type: "Int64",
+        note: "Depth level in hierarchy tree (0 = root)",
+      },
+      {
+        name: "NestedSetLeft",
+        type: "Int64",
+        note: "Nested-set model left boundary for efficient subtree queries",
+      },
+    ],
+  },
+
+  EcoResCategoryHierarchy: {
+    name: "EcoResCategoryHierarchy",
+    description: "Named category hierarchy (e.g. 'Procurement categories', 'Sales categories'). Multiple hierarchies can coexist; each contains its own tree of EcoResCategory nodes.",
+    module: "Product Information Management",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/productinformationmanagement/main/ecorescategoryhierarchy",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "Name",
+        type: "String",
+        note: "Display name of the hierarchy (e.g. 'Procurement categories')",
+      },
+      {
+        name: "HierarchyModifier",
+        type: "Int32",
+        note: "Enum controlling which module roles can use this hierarchy (Sales, Procurement, etc.)",
+      },
+    ],
+  },
+
+  InventItemGroup: {
+    name: "InventItemGroup",
+    description: "Item group (per legal entity) that drives inventory posting profiles and tax item groups. InventTable.ItemGroupId FK is one of the most common extension join points in D365FO.",
+    module: "Inventory",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/inventory/group/inventitemgroup",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "ItemGroupId",
+        type: "String",
+        note: "Primary key — user-visible group code referenced by InventTable.ItemGroupId",
+      },
+      {
+        name: "Name",
+        type: "String",
+        note: "Description of the item group",
+      },
+      {
+        name: "TaxItemGroupIdSales",
+        type: "String",
+        fkTarget: "TaxItemGroupHeading.TaxItemGroupId",
+        note: "Default sales tax item group for items in this group",
+      },
+      {
+        name: "TaxItemGroupIdPurch",
+        type: "String",
+        fkTarget: "TaxItemGroupHeading.TaxItemGroupId",
+        note: "Default purchase tax item group for items in this group",
+      },
+      {
+        name: "DataAreaId",
+        type: "String",
+        note: "Legal entity; InventItemGroup is per-company",
+      },
+      {
+        name: "RevRecRevenueRecognitionEnabled",
+        type: "Int32",
+        note: "Flag enabling revenue recognition for items in this group",
+      },
+      {
+        name: "RevRecRevenueType",
+        type: "Int32",
+        note: "Enum for revenue type used in rev-rec schedule assignment",
+      },
     ],
   },
 
@@ -4130,6 +5645,235 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "VoucherJournal", type: "string", note: "GL voucher; links to LedgerTrans for the WIP-Revenue accounting entry" },
       { name: "IsCorrection", type: "int32", note: "Flag: 1=this row is a reversal/correction of a prior accrual" },
       { name: "LinePropertyId", type: "string", note: "FK → ProjLineProperty; controls whether line is chargeable and accrues revenue" },
+    ],
+  },
+
+  AssetTable: {
+    name: "AssetTable",
+    description: "Fixed asset master record — one row per physical or intangible asset. Contains the asset ID, name, group classification, acquisition date, location, and default financial dimensions. All value model (AssetBook) and transaction (AssetTrans) records link back to AssetTable via AssetId.",
+    module: "Fixed Assets",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/main/assettable",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "AssetId",
+        type: "String",
+        note: "Primary key — unique identifier assigned to each fixed asset",
+      },
+      {
+        name: "Name",
+        type: "String",
+        note: "Descriptive name of the asset",
+      },
+      {
+        name: "AssetGroup",
+        type: "String",
+        fkTarget: "AssetGroup.GroupId",
+        note: "FK to the asset group that governs posting profiles and depreciation defaults",
+      },
+      {
+        name: "AcquisitionDate_W",
+        type: "Date",
+        note: "Date the asset was acquired (w/o tax)",
+      },
+      {
+        name: "AcquisitionPrice_W",
+        type: "Decimal",
+        note: "Acquisition price of the asset (without tax)",
+      },
+      {
+        name: "AcquisitionValueNO",
+        type: "Decimal",
+        note: "Full acquisition value including any additional acquisition costs",
+      },
+      {
+        name: "Location",
+        type: "String",
+        note: "Physical location of the asset",
+      },
+      {
+        name: "SerialNum",
+        type: "String",
+        note: "Manufacturer serial number or asset tag",
+      },
+      {
+        name: "DefaultDimension",
+        type: "Int64",
+        fkTarget: "DimensionAttributeValueSet.RecId",
+        note: "FK to the default financial dimension set for this asset",
+      },
+    ],
+  },
+
+  AssetBook: {
+    name: "AssetBook",
+    description: "Value model (depreciation book) assigned to a fixed asset. One asset can have multiple AssetBook rows (e.g. a tax book and a statutory book). Defines acquisition cost, scrap value, service life, depreciation profile, and holds running depreciation values.",
+    module: "Fixed Assets",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/main/assetbook",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "AssetId",
+        type: "String",
+        fkTarget: "AssetTable.AssetId",
+        note: "FK to the asset this book belongs to",
+      },
+      {
+        name: "BookId",
+        type: "String",
+        note: "Primary key of the value model / depreciation book (e.g. 'Tax', 'Local')",
+      },
+      {
+        name: "AcquisitionDate",
+        type: "Date",
+        note: "Date the asset was acquired under this book",
+      },
+      {
+        name: "AcquisitionPrice",
+        type: "Decimal",
+        note: "Acquisition cost recorded in this value model",
+      },
+      {
+        name: "ScrapValue",
+        type: "Decimal",
+        note: "Residual value at end of useful life (minimum net book value)",
+      },
+      {
+        name: "ServiceLife",
+        type: "Decimal",
+        note: "Total useful life in years for depreciation calculation",
+      },
+      {
+        name: "DepreciationProfile",
+        type: "String",
+        fkTarget: "AssetDepreciationProfile.DepreciationProfileId",
+        note: "FK to the depreciation profile defining the calculation method",
+      },
+      {
+        name: "DepreciationConvention",
+        type: "Int32",
+        note: "Enum: 0 = First day, 1 = Last day — determines period boundary for first/last depreciation",
+      },
+      {
+        name: "Status",
+        type: "Int32",
+        note: "Enum: 0 = Open, 1 = Permanently depreciated, 2 = Disposed",
+      },
+    ],
+  },
+
+  AssetTrans: {
+    name: "AssetTrans",
+    description: "Individual fixed asset transaction rows — one per acquisition, depreciation run, impairment, revaluation, or disposal event. Linked to the AssetBook (value model) and posts GL entries via LedgerDimension.",
+    module: "Fixed Assets",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/transaction/assettrans",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "AssetId",
+        type: "String",
+        fkTarget: "AssetTable.AssetId",
+        note: "FK to the asset that this transaction belongs to",
+      },
+      {
+        name: "BookId",
+        type: "String",
+        fkTarget: "AssetBook.BookId",
+        note: "FK to the value model (book) that this transaction applies to",
+      },
+      {
+        name: "TransType",
+        type: "Int32",
+        note: "Enum: 1 = Acquisition, 2 = Depreciation, 3 = Disposal, 4 = Revaluation, etc.",
+      },
+      {
+        name: "TransDate",
+        type: "Date",
+        note: "Date of the transaction",
+      },
+      {
+        name: "AmountCur",
+        type: "Decimal",
+        note: "Transaction amount in the original currency",
+      },
+      {
+        name: "AmountMST",
+        type: "Decimal",
+        note: "Transaction amount in the accounting currency",
+      },
+      {
+        name: "CurrencyCode",
+        type: "String",
+        fkTarget: "Currency.CurrencyCode",
+        note: "ISO currency code of the transaction",
+      },
+      {
+        name: "LedgerDimension",
+        type: "Int64",
+        fkTarget: "DimensionAttributeValueCombination.RecId",
+        note: "FK to the GL ledger account and dimensions this transaction posts to",
+      },
+      {
+        name: "Voucher",
+        type: "String",
+        note: "Voucher number linking to the GeneralJournalEntry",
+      },
+    ],
+  },
+
+  AssetGroup: {
+    name: "AssetGroup",
+    description: "Asset classification group master. Groups assets by type (Vehicles, Computers, Furniture, etc.) and drives defaults: number sequence for asset IDs, capitalisation threshold, default depreciation profile, and posting accounts for acquisitions and depreciation.",
+    module: "Fixed Assets",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/group/assetgroup",
+    fields: [
+      {
+        name: "RecId",
+        type: "Int64",
+        note: "Surrogate primary key",
+      },
+      {
+        name: "GroupId",
+        type: "String",
+        note: "Primary key — unique code identifying the asset group (e.g. 'EQ-VEHICLE')",
+      },
+      {
+        name: "Name",
+        type: "String",
+        note: "Human-readable name of the asset group",
+      },
+      {
+        name: "AssetType",
+        type: "Int32",
+        note: "Enum classifying asset type (Tangible, Intangible, Financial)",
+      },
+      {
+        name: "CapitalizationThreshold",
+        type: "Decimal",
+        note: "Minimum cost above which an item must be capitalised as a fixed asset",
+      },
+      {
+        name: "Location",
+        type: "String",
+        note: "Default location assigned to assets in this group",
+      },
+      {
+        name: "MajorType",
+        type: "String",
+        note: "Major type classification for reporting purposes",
+      },
     ],
   },
 

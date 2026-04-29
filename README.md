@@ -66,13 +66,13 @@ Repository hygiene & security notes
 
 Source & Data Attribution
 ------
-This README and the project's case study content were adapted from the companion site at `../hidayattaufiqur.dev/src/pages/projects/fno-navigator-case-study.astro` and `data.ts`.
+This README and the project's case study content were adapted from the companion site at `../hidayattaufiqur.dev/src/content/projects/fno-navigator-case-study.md` and `data.ts`.
 
-The table relationship dataset used by the Table Path Finder feature is included as `static/data/fk-map.json`. The dataset was produced by converting table relationship text files originally published by Microsoft and by using approaches from Alex Meyer's project.
+The table relationship dataset used by the Table Path Finder feature is included as `static/data/fk-map.json`. The dataset was produced by converting table relationship data from HTML ERD files originally published by Microsoft and by using approaches from Alex Meyer's MicrosoftDynamicsTableAssociations project.
 
 Primary sources:
 
-- Microsoft: ax-2012-doc-tools — source table data (text files). https://github.com/Microsoft/ax-2012-doc-tools
-- Alex Meyer: MicrosoftDynamicsTableAssociations — conversion approach and tooling used as inspiration. https://github.com/ameyer505/MicrosoftDynamicsTableAssociations
+- Microsoft: ax-2012-doc-tools — source table data (HTML ERD files in the Module-Erd directory). https://github.com/Microsoft/ax-2012-doc-tools
+- Alex Meyer: MicrosoftDynamicsTableAssociations — published table relationship data (tables.json, tablefieldassociations.json) derived from Microsoft's ERD information; conversion approach and tooling used as inspiration. https://github.com/ameyer505/MicrosoftDynamicsTableAssociations
 
 Both upstream projects are licensed under the MIT License. The data in `static/data/fk-map.json` is included in this repository under the MIT License with attribution to the upstream sources above. When redistributing or adapting the dataset, keep this attribution and the original license notices.

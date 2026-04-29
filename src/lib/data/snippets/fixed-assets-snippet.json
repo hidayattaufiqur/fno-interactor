@@ -1,0 +1,152 @@
+[
+  {
+    "table": "AssetTable",
+    "module": "Fixed Assets",
+    "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/main/assettable",
+    "urlStatus": 200,
+    "insertAfter": "ProjRevenueTrans",
+    "flowStage": null,
+    "relNote": "Fixed asset master record; one row per physical or intangible asset owned by the company",
+    "relFields": [
+      "AssetBook.AssetId = AssetTable.AssetId",
+      "AssetTrans.AssetId = AssetTable.AssetId"
+    ],
+    "def": {
+      "name": "AssetTable",
+      "description": "Fixed asset master record — one row per physical or intangible asset. Contains the asset ID, name, group classification, acquisition date, location, and default financial dimensions. All value model (AssetBook) and transaction (AssetTrans) records link back to AssetTable via AssetId.",
+      "module": "Fixed Assets",
+      "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/main/assettable",
+      "fields": [
+        { "name": "RecId",                 "type": "Int64",   "note": "Surrogate primary key" },
+        { "name": "AssetId",               "type": "String",  "note": "Primary key — unique identifier assigned to each fixed asset" },
+        { "name": "Name",                  "type": "String",  "note": "Descriptive name of the asset" },
+        { "name": "AssetGroup",            "type": "String",  "fkTarget": "AssetGroup.GroupId", "note": "FK to the asset group that governs posting profiles and depreciation defaults" },
+        { "name": "AcquisitionDate_W",   "type": "Date",    "note": "Date the asset was acquired (w/o tax)" },
+        { "name": "AcquisitionPrice_W",  "type": "Decimal", "note": "Acquisition price of the asset (without tax)" },
+        { "name": "AcquisitionValueNO",  "type": "Decimal", "note": "Full acquisition value including any additional acquisition costs" },
+        { "name": "Location",             "type": "String",  "note": "Physical location of the asset" },
+        { "name": "SerialNum",            "type": "String",  "note": "Manufacturer serial number or asset tag" },
+        { "name": "DefaultDimension",     "type": "Int64",   "fkTarget": "DimensionAttributeValueSet.RecId", "note": "FK to the default financial dimension set for this asset" }
+      ]
+    }
+  },
+  {
+    "table": "AssetBook",
+    "module": "Fixed Assets",
+    "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/main/assetbook",
+    "urlStatus": 200,
+    "insertAfter": "AssetTable",
+    "flowStage": null,
+    "relNote": "Value model (depreciation book) per asset — one asset can have multiple books (e.g. tax book + statutory book). Holds acquisition cost, scrap value, useful life, depreciation profile, and accumulated depreciation.",
+    "relFields": [
+      "AssetBook.AssetId = AssetTable.AssetId",
+      "AssetTrans.BookId = AssetBook.BookId",
+      "AssetTrans.AssetId = AssetBook.AssetId"
+    ],
+    "def": {
+      "name": "AssetBook",
+      "description": "Value model (depreciation book) assigned to a fixed asset. One asset can have multiple AssetBook rows (e.g. a tax book and a statutory book). Defines acquisition cost, scrap value, service life, depreciation profile, and holds running depreciation values.",
+      "module": "Fixed Assets",
+      "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/main/assetbook",
+      "fields": [
+        { "name": "RecId",                 "type": "Int64",   "note": "Surrogate primary key" },
+        { "name": "AssetId",               "type": "String",  "fkTarget": "AssetTable.AssetId", "note": "FK to the asset this book belongs to" },
+        { "name": "BookId",               "type": "String",  "note": "Primary key of the value model / depreciation book (e.g. 'Tax', 'Local')" },
+        { "name": "AcquisitionDate",       "type": "Date",    "note": "Date the asset was acquired under this book" },
+        { "name": "AcquisitionPrice",     "type": "Decimal", "note": "Acquisition cost recorded in this value model" },
+        { "name": "ScrapValue",           "type": "Decimal", "note": "Residual value at end of useful life (minimum net book value)" },
+        { "name": "ServiceLife",          "type": "Decimal", "note": "Total useful life in years for depreciation calculation" },
+        { "name": "DepreciationProfile",  "type": "String",  "fkTarget": "AssetDepreciationProfile.DepreciationProfileId", "note": "FK to the depreciation profile defining the calculation method" },
+        { "name": "DepreciationConvention", "type": "Int32", "note": "Enum: 0 = First day, 1 = Last day — determines period boundary for first/last depreciation" },
+        { "name": "Status",              "type": "Int32",   "note": "Enum: 0 = Open, 1 = Permanently depreciated, 2 = Disposed" }
+      ]
+    }
+  },
+  {
+    "table": "AssetTrans",
+    "module": "Fixed Assets",
+    "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/transaction/assettrans",
+    "urlStatus": 200,
+    "insertAfter": "AssetBook",
+    "flowStage": null,
+    "relNote": "Individual FA transaction rows — acquisition, depreciation, impairment, disposal. Links to AssetBook (the value model) and creates GL postings via LedgerDimension.",
+    "relFields": [
+      "AssetTrans.AssetId = AssetTable.AssetId",
+      "AssetTrans.BookId = AssetBook.BookId",
+      "AssetTrans.LedgerDimension = DimensionAttributeValueCombination.RecId"
+    ],
+    "def": {
+      "name": "AssetTrans",
+      "description": "Individual fixed asset transaction rows — one per acquisition, depreciation run, impairment, revaluation, or disposal event. Linked to the AssetBook (value model) and posts GL entries via LedgerDimension.",
+      "module": "Fixed Assets",
+      "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/transaction/assettrans",
+      "fields": [
+        { "name": "RecId",                 "type": "Int64",   "note": "Surrogate primary key" },
+        { "name": "AssetId",               "type": "String",  "fkTarget": "AssetTable.AssetId", "note": "FK to the asset that this transaction belongs to" },
+        { "name": "BookId",               "type": "String",  "fkTarget": "AssetBook.BookId", "note": "FK to the value model (book) that this transaction applies to" },
+        { "name": "TransType",            "type": "Int32",   "note": "Enum: 1 = Acquisition, 2 = Depreciation, 3 = Disposal, 4 = Revaluation, etc." },
+        { "name": "TransDate",            "type": "Date",    "note": "Date of the transaction" },
+        { "name": "AmountCur",            "type": "Decimal", "note": "Transaction amount in the original currency" },
+        { "name": "AmountMST",            "type": "Decimal", "note": "Transaction amount in the accounting currency" },
+        { "name": "CurrencyCode",         "type": "String",  "fkTarget": "Currency.CurrencyCode", "note": "ISO currency code of the transaction" },
+        { "name": "LedgerDimension",     "type": "Int64",   "fkTarget": "DimensionAttributeValueCombination.RecId", "note": "FK to the GL ledger account and dimensions this transaction posts to" },
+        { "name": "Voucher",             "type": "String",  "note": "Voucher number linking to the GeneralJournalEntry" }
+      ]
+    }
+  },
+  {
+    "table": "AssetGroup",
+    "module": "Fixed Assets",
+    "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/group/assetgroup",
+    "urlStatus": 200,
+    "insertAfter": "AssetTrans",
+    "flowStage": null,
+    "relNote": "Asset classification group — controls default depreciation profile, posting accounts, and capitalisation threshold for all assets assigned to the group",
+    "relFields": [
+      "AssetTable.AssetGroup = AssetGroup.GroupId"
+    ],
+    "def": {
+      "name": "AssetGroup",
+      "description": "Asset classification group master. Groups assets by type (Vehicles, Computers, Furniture, etc.) and drives defaults: number sequence for asset IDs, capitalisation threshold, default depreciation profile, and posting accounts for acquisitions and depreciation.",
+      "module": "Fixed Assets",
+      "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/group/assetgroup",
+      "fields": [
+        { "name": "RecId",                 "type": "Int64",   "note": "Surrogate primary key" },
+        { "name": "GroupId",              "type": "String",  "note": "Primary key — unique code identifying the asset group (e.g. 'EQ-VEHICLE')" },
+        { "name": "Name",                  "type": "String",  "note": "Human-readable name of the asset group" },
+        { "name": "AssetType",            "type": "Int32",   "note": "Enum classifying asset type (Tangible, Intangible, Financial)" },
+        { "name": "CapitalizationThreshold", "type": "Decimal", "note": "Minimum cost above which an item must be capitalised as a fixed asset" },
+        { "name": "Location",             "type": "String",  "note": "Default location assigned to assets in this group" },
+        { "name": "MajorType",            "type": "String",  "note": "Major type classification for reporting purposes" }
+      ]
+    }
+  },
+  {
+    "table": "AssetDepreciationProfile",
+    "module": "Fixed Assets",
+    "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/group/assetdepreciationprofile",
+    "urlStatus": 404,
+    "insertAfter": "AssetGroup",
+    "flowStage": null,
+    "relNote": "Depreciation method schedule — defines straight-line, reducing balance, or other depreciation calculation rules. Assigned to AssetBook per asset.",
+    "relFields": [
+      "AssetBook.DepreciationProfile = AssetDepreciationProfile.DepreciationProfileId"
+    ],
+    "def": {
+      "name": "AssetDepreciationProfile",
+      "description": "Depreciation profile master defining the method (straight-line, reducing balance, sum-of-years-digits, units of production) and parameters used to calculate depreciation for each value model. Referenced by AssetBook.",
+      "module": "Fixed Assets",
+      "docsUrl": "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/fixedassets/group/assetdepreciationprofile",
+      "fields": [
+        { "name": "RecId",                         "type": "Int64",   "note": "Surrogate primary key" },
+        { "name": "DepreciationProfileId",          "type": "String",  "note": "Primary key — code identifying this depreciation profile (e.g. 'STL', 'RB-30')" },
+        { "name": "Description",                   "type": "String",  "note": "Human-readable description of the depreciation method" },
+        { "name": "Method",                        "type": "Int32",   "note": "Enum: 0 = Straight-line, 1 = Reducing balance, 2 = Sum-of-years-digits, 3 = Units of production" },
+        { "name": "ServiceLifeYears",              "type": "Int32",   "note": "Default useful life in years for assets using this profile" },
+        { "name": "Rate",                         "type": "Decimal", "note": "Depreciation rate (e.g. 0.20 for 20% reducing balance per year)" },
+        { "name": "UsefulLifeMonths",             "type": "Int32",   "note": "Useful life expressed in months (alternative to years)" },
+        { "name": "EffectiveFromDate",            "type": "Date",    "note": "Date from which this profile becomes valid" }
+      ]
+    }
+  }
+]
