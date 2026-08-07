@@ -1,8 +1,11 @@
 <script>
+  import { onMount } from 'svelte'
+  import { page } from '$app/stores'
   import { tableDefs } from '$lib/data/flows'
   import { canonicalModule } from '$lib/utils'
   import { findState } from '$lib/stores/findState'
-  import { fkLoadState, fkLoadError, loadFkMap, getAllFkTableNames, getForwardMap, getReverseMap } from '$lib/stores/fkMap'
+  import { fkLoadState, fkLoadError, loadFkMap, getAllFkTableNames } from '$lib/stores/fkMap'
+  import { findPaths } from '$lib/pathfinder'
 
   // ── Bind store fields to local vars for template convenience ───────────────
 
@@ -14,9 +17,32 @@
   let pathResults = $findState.pathResults
   let searchState = $findState.searchState
   let searchError = $findState.searchError
+  let truncated = $findState.truncated
+  let shortestHops = $findState.shortestHops
 
   // Sync local vars back to store on any change
-  $: findState.set({ sourceInput, targetInput, sourceTable, targetTable, maxHops, pathResults, searchState, searchError })
+  $: findState.set({ sourceInput, targetInput, sourceTable, targetTable, maxHops, pathResults, searchState, searchError, truncated, shortestHops })
+
+  // ── Deep links (?from=X&to=Y) ──────────────────────────────────────────────
+
+  /** Reads ?from=&to= on first load and kicks off a search if both are valid. */
+  onMount(() => {
+    const from = $page.url.searchParams.get('from')
+    const to = $page.url.searchParams.get('to')
+    if (from && to) {
+      sourceTable = from
+      sourceInput = from
+      targetTable = to
+      targetInput = to
+      handleFind()
+    } else if (from) {
+      sourceTable = from
+      sourceInput = from
+    } else if (to) {
+      targetTable = to
+      targetInput = to
+    }
+  })
 
   // ── Autocomplete ───────────────────────────────────────────────────────────
 
@@ -64,6 +90,18 @@
     targetSuggestions = []
   }
 
+  /** Swap source and target tables. */
+  function swapTables() {
+    const s = sourceTable || sourceInput
+    const t = targetTable || targetInput
+    sourceTable = t
+    sourceInput = t
+    targetTable = s
+    targetInput = s
+    sourceSuggestions = []
+    targetSuggestions = []
+  }
+
   /** @param {KeyboardEvent} e @param {'source' | 'target'} which */
   function handleInputKey(e, which) {
     const suggestions = which === 'source' ? sourceSuggestions : targetSuggestions
@@ -79,58 +117,13 @@
     if ($fkLoadState === 'idle') loadFkMap()
   }
 
-  // ── Pathfinding (BFS) ──────────────────────────────────────────────────────
-
-  const MAX_RESULTS = 50
-
-  /**
-   * @param {string} source
-   * @param {string} target
-   * @param {number} maxDepth
-   * @returns {{ steps: { table: string; via: string }[] }[]}
-   */
-  function findPaths(source, target, maxDepth) {
-    const fkMapForward = getForwardMap()
-    const fkMapReverse = getReverseMap()
-    if (!fkMapForward) return []
-    if (source === target) return [{ steps: [{ table: source, via: '' }] }]
-
-    const results = []
-    /** @type {{ steps: { table: string; via: string }[], visited: Set<string> }[]} */
-    const queue = [{ steps: [{ table: source, via: '' }], visited: new Set([source]) }]
-
-    while (queue.length > 0 && results.length < MAX_RESULTS) {
-      const { steps, visited } = queue.shift()
-      const currentTable = steps[steps.length - 1].table
-      if (steps.length > maxDepth + 1) continue
-
-      for (const [childTable, parentField, childField] of fkMapForward[currentTable] ?? []) {
-        const edgeLabel = `${childTable}.${childField} → ${currentTable}.${parentField}`
-        if (childTable === target) {
-          results.push({ steps: [...steps, { table: childTable, via: edgeLabel }] })
-          if (results.length >= MAX_RESULTS) break
-        } else if (!visited.has(childTable) && steps.length < maxDepth + 1) {
-          queue.push({ steps: [...steps, { table: childTable, via: edgeLabel }], visited: new Set([...visited, childTable]) })
-        }
-      }
-      if (results.length >= MAX_RESULTS) break
-
-      for (const [parentTable, parentField, childField] of fkMapReverse[currentTable] ?? []) {
-        const edgeLabel = `${currentTable}.${childField} → ${parentTable}.${parentField}`
-        if (parentTable === target) {
-          results.push({ steps: [...steps, { table: parentTable, via: edgeLabel }] })
-          if (results.length >= MAX_RESULTS) break
-        } else if (!visited.has(parentTable) && steps.length < maxDepth + 1) {
-          queue.push({ steps: [...steps, { table: parentTable, via: edgeLabel }], visited: new Set([...visited, parentTable]) })
-        }
-      }
-    }
-    return results
-  }
+  // ── Pathfinding ────────────────────────────────────────────────────────────
 
   async function handleFind() {
     searchError = ''
     pathResults = []
+    truncated = false
+    shortestHops = null
 
     if (!sourceTable || !targetTable) {
       searchError = 'Pick both a source and a target table first.'
@@ -149,7 +142,10 @@
 
     searchState = 'running'
     await new Promise((resolve) => setTimeout(resolve, 0))
-    pathResults = findPaths(sourceTable, targetTable, maxHops)
+    const { results, shortest, truncated: wasTruncated } = findPaths(sourceTable, targetTable, maxHops)
+    pathResults = results
+    shortestHops = shortest
+    truncated = wasTruncated
     searchState = 'done'
   }
 </script>
@@ -205,7 +201,11 @@
       </div>
     </div>
 
-    <div class="finder-arrow" aria-hidden="true">→</div>
+    <div class="finder-arrow" aria-hidden="true">
+      <button class="swap-btn" on:click={swapTables} title="Swap source and target" aria-label="Swap source and target tables">
+        ⇄
+      </button>
+    </div>
 
     <!-- Target table input -->
     <div class="table-input-group">
@@ -276,7 +276,7 @@
           <span class="mini">Fetching 39,380 table associations for the first time (~2 MB). This only happens once per session.</span>
         {:else}
           <strong>Searching for paths…</strong>
-          <span class="mini">Running BFS across the FK graph from <em>{sourceTable}</em> to <em>{targetTable}</em>.</span>
+          <span class="mini">Running a guided search across the FK graph from <em>{sourceTable}</em> to <em>{targetTable}</em>.</span>
         {/if}
       </div>
     </div>
@@ -291,15 +291,25 @@
     {:else}
       <div class="results-header">
         <span class="section-heading">
-          {pathResults.length}{pathResults.length >= MAX_RESULTS ? '+' : ''} path{pathResults.length !== 1 ? 's' : ''}
+          {pathResults.length}{pathResults.length >= 50 ? '+' : ''} path{pathResults.length !== 1 ? 's' : ''}
           from <strong>{sourceTable}</strong> to <strong>{targetTable}</strong>
         </span>
-        <span class="mini">Shortest paths shown first · click a table name to view its reference</span>
+        <span class="mini">
+          {#if shortestHops !== null}
+            Shortest: <strong>{shortestHops}</strong> hop{shortestHops !== 1 ? 's' : ''} ·
+          {/if}
+          Fewest hops first · click a table name to view its reference
+        </span>
       </div>
+
+      {#if truncated}
+        <p class="finder-note">Search hit its internal limit — showing the first {pathResults.length} paths. Narrow the max hops for a shorter list.</p>
+      {/if}
 
       <ol class="path-list">
         {#each pathResults as result, i}
           {@const hops = result.steps.length - 1}
+          {@const isShortest = shortestHops !== null && hops === shortestHops}
           <li class="path-item">
             <span class="path-index">#{i + 1}</span>
             <div class="path-body">
@@ -314,6 +324,9 @@
                     class:path-target={stepIndex === result.steps.length - 1}
                   >{step.table}</a>
                 {/each}
+                {#if isShortest}
+                  <span class="shortest-badge" title="Shortest path">shortest</span>
+                {/if}
                 <span class="hop-count">{hops} hop{hops !== 1 ? 's' : ''}</span>
               </div>
               <!-- Row 2: FK field labels, one per hop -->
@@ -374,6 +387,28 @@
     color: var(--clr-text-faint);
     padding-bottom: 4px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .swap-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--clr-text-muted);
+    border-radius: 8px;
+    width: 38px;
+    height: 34px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .swap-btn:hover {
+    border-color: var(--clr-border-accent);
+    color: var(--clr-text);
   }
 
   .finder-controls {
@@ -509,6 +544,15 @@
     border-radius: 7px;
   }
 
+  .finder-note {
+    color: var(--clr-text-muted);
+    font-size: 12px;
+    padding: 8px 12px;
+    background: rgba(255, 180, 0, 0.08);
+    border: 1px solid rgba(255, 180, 0, 0.18);
+    border-radius: 7px;
+  }
+
   .finder-empty {
     text-align: center;
     padding: 40px 24px;
@@ -584,6 +628,20 @@
     flex-shrink: 0;
   }
 
+  .shortest-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(76, 175, 80, 0.12);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    color: var(--clr-green);
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+
   .path-table-link {
     font-family: var(--font-mono, monospace);
     font-size: 13px;
@@ -606,7 +664,6 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-    padding-left: 1px;
     border-left: 2px solid rgba(255, 255, 255, 0.05);
     margin-left: 2px;
     padding-left: 8px;

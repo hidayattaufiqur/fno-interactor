@@ -14,6 +14,8 @@ export const findState = writable(
    *   pathResults: { steps: { table: string; via: string }[] }[]
    *   searchState: 'idle' | 'running' | 'done'
    *   searchError: string
+   *   truncated: boolean
+   *   shortestHops: number | null
    * }} */
   ({
     sourceInput: '',
@@ -24,5 +26,7 @@ export const findState = writable(
     pathResults: [],
     searchState: 'idle',
     searchError: '',
+    truncated: false,
+    shortestHops: null,
   })
 )

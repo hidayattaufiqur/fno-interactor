@@ -83,6 +83,10 @@
       Microsoft Learn docs ↗
     </a>
   {/if}
+  <div class="trace-links">
+    <a href="/find?from={data.name}" class="trace-link">⇢ Trace paths from {data.name}</a>
+    <a href="/find?to={data.name}" class="trace-link trace-link-secondary">⇠ Trace paths to {data.name}</a>
+  </div>
 </header>
 
 {#if data.def?.fields?.length}
@@ -335,6 +339,33 @@
 {/if}
 
 <style>
+  .trace-links {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .trace-link {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--clr-blue);
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .trace-link:hover {
+    border-color: var(--clr-border-accent);
+    background: rgba(255, 255, 255, 0.08);
+    text-decoration: none;
+  }
+
+  .trace-link-secondary { color: var(--clr-green); }
+
   .schema-section-heading {
     color: var(--clr-text-muted);
   }
