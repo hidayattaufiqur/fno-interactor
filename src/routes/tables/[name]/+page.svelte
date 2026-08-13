@@ -277,7 +277,7 @@
       <span class="schema-badge">from FK schema</span>
     </div>
     <p class="mini schema-note">
-      These FK links come directly from the D365FO database schema (39,380 associations across 5,633 tables),
+      These FK links come directly from the D365FO database schema (37,443 verified associations across 5,633 tables),
       filtered to tables already referenced in documented flows. Self-referencing FKs (a table pointing to itself)
       are excluded. They show the physical FK field — not all of them are relevant to every business process.
     </p>

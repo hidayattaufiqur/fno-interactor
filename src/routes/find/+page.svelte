@@ -160,7 +160,7 @@
     <h2>Table Path Finder</h2>
     <p class="lede">
       Discover the FK relationship chain between any two D365FO tables. Uses
-      <strong>39,380 associations</strong> across 5,633 tables — the full Microsoft Dynamics
+      <strong>37,443 verified associations</strong> across 5,633 tables — the full Microsoft Dynamics
       database graph.
     </p>
   </div>
@@ -273,7 +273,7 @@
       <div class="loading-text">
         {#if $fkLoadState === 'loading'}
           <strong>Loading FK map…</strong>
-          <span class="mini">Fetching 39,380 table associations for the first time (~2 MB). This only happens once per session.</span>
+          <span class="mini">Fetching 37,443 verified table associations for the first time (~2 MB). This only happens once per session.</span>
         {:else}
           <strong>Searching for paths…</strong>
           <span class="mini">Running a guided search across the FK graph from <em>{sourceTable}</em> to <em>{targetTable}</em>.</span>
