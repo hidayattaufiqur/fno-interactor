@@ -150,7 +150,7 @@ export const flows: Flow[] = [
           'SalesTable.InvoiceAccount ≠ CustAccount — the invoice goes to a different customer than the order',
         ],
         prerequisites: ['Released product (InventTable)', 'Site and warehouse configured'],
-        tables: ['SalesTable', 'SalesLine', 'CustTable', 'InventDim', 'InventTable', 'SalesAgreementTable', 'SalesAgreementLine', 'CustConfirmJour', 'CustConfirmTrans'],
+        tables: ['SalesTable', 'SalesLine', 'CustTable', 'InventDim', 'InventTable', 'AgreementHeader', 'AgreementLine', 'CustConfirmJour', 'CustConfirmTrans'],
         relations: [
           {
             from: 'SalesTable',
@@ -173,20 +173,20 @@ export const flows: Flow[] = [
           {
             from: 'SalesLine',
             to: 'InventDim',
-            fields: ['SalesLine.InventDimId → InventDim.InventDimId'],
+            fields: ['SalesLine.InventDimId → InventDim.inventDimId'],
             note: 'InventDimId is a system-generated hash that encodes the combination of site, warehouse, batch, serial, and tracking dimensions for the line',
           },
           {
             from: 'SalesTable',
-            to: 'SalesAgreementTable',
-            fields: ['SalesTable.Agreement = SalesAgreementTable.RecId'],
-            note: 'A sales order can be released against a sales agreement; SalesTable.Agreement FK references SalesAgreementTable.RecId to inherit agreed pricing and quantity commitments',
+            to: 'AgreementHeader',
+            fields: ['SalesTable.MatchingAgreement → AgreementHeader.RecId'],
+            note: 'A sales order can be released against a sales agreement; SalesTable.MatchingAgreement FK references AgreementHeader.RecId (sales agreement classification) to inherit agreed pricing and quantity commitments',
           },
           {
-            from: 'SalesAgreementLine',
-            to: 'SalesAgreementTable',
-            fields: ['SalesAgreementLine.SalesAgreementId = SalesAgreementTable.SalesAgreementId'],
-            note: 'Each SalesAgreementLine specifies a quantity or value commitment for one item under the parent SalesAgreementTable',
+            from: 'AgreementLine',
+            to: 'AgreementHeader',
+            fields: ['AgreementLine.Agreement → AgreementHeader.RecId'],
+            note: 'Each AgreementLine specifies a quantity or value commitment for one item under the parent AgreementHeader',
           },
           {
             from: 'CustConfirmJour',
@@ -239,14 +239,14 @@ export const flows: Flow[] = [
           },
           {
             from: 'WHSWorkTable',
-            to: 'WHSShipment',
-            fields: ['WHSWorkTable.ShipmentId → WHSShipment.ShipmentId'],
+            to: 'WHSShipmentTable',
+            fields: ['WHSWorkTable.ShipmentId → WHSShipmentTable.ShipmentId'],
             note: 'Work is generated for a specific outbound shipment',
           },
           {
-            from: 'WHSShipment',
+            from: 'WHSShipmentTable',
             to: 'WHSLoadTable',
-            fields: ['WHSShipment.LoadId → WHSLoadTable.LoadId'],
+            fields: ['WHSShipmentTable.LoadId → WHSLoadTable.LoadId'],
             note: 'One or more shipments are consolidated onto a load for transport planning',
           },
           {
@@ -258,7 +258,7 @@ export const flows: Flow[] = [
           {
             from: 'WHSWorkLine',
             to: 'InventTrans',
-            fields: ['Linked via ItemId + InventDimId + work context (no direct FK)'],
+            fields: ['Linked via ItemId + inventDimId + work context (no direct FK)'],
             note: 'Picking writes InventTrans records; StatusIssue goes Picked → Sold when the invoice is posted',
           },
           {
@@ -308,14 +308,14 @@ export const flows: Flow[] = [
           {
             from: 'CustInvoiceTrans',
             to: 'CustInvoiceJour',
-            fields: ['CustInvoiceTrans.InvoiceId = CustInvoiceJour.InvoiceId (via RecId FK on CustInvoiceRelationshipId)'],
-            note: 'Invoice lines belong to their posted invoice header',
+            fields: ['CustInvoiceTrans.ParentRecId → CustInvoiceJour.RecId'],
+            note: 'Invoice lines belong to their posted invoice header via ParentRecId',
           },
           {
             from: 'CustInvoiceTrans',
-            to: 'SalesLine',
-            fields: ['CustInvoiceTrans.SalesId = SalesLine.SalesId', 'CustInvoiceTrans.LineNum = SalesLine.LineNum'],
-            note: 'Each invoice line traces back to the originating sales order line',
+            to: 'SalesTable',
+            fields: ['CustInvoiceTrans.SalesId = SalesTable.SalesId'],
+            note: 'Each invoice line traces back to the originating sales order',
           },
           {
             from: 'CustInvoiceJour',
@@ -342,9 +342,9 @@ export const flows: Flow[] = [
             note: 'Sales tax group (TaxGroupHeading) is assigned to a customer, vendor, or order header; TaxGroup field on SalesLine/CustInvoiceLine references TaxGroupHeading.TaxGroup',
           },
           {
-            from: 'InventTable',
+            from: 'SalesLine',
             to: 'TaxItemGroupHeading',
-            fields: ['InventTable.TaxItemGroupId = TaxItemGroupHeading.TaxItemGroup', 'SalesLine.TaxItemGroup = TaxItemGroupHeading.TaxItemGroup'],
+            fields: ['SalesLine.TaxItemGroup = TaxItemGroupHeading.TaxItemGroup'],
             note: 'Item sales tax group (TaxItemGroupHeading) is assigned to items or order lines; TaxItemGroup field on SalesLine/CustInvoiceLine references TaxItemGroupHeading.TaxItemGroup',
           },
         ],
@@ -392,23 +392,20 @@ export const flows: Flow[] = [
           {
             from: 'CustSettlement',
             to: 'CustTrans',
-            fields: [
-              'CustSettlement.TransRecId → CustTrans.RecId (invoice transaction)',
-              'CustSettlement.OffsetRecId → CustTrans.RecId (payment transaction)',
-            ],
+            fields: ['CustSettlement.TransRecId → CustTrans.RecId (invoice transaction)', 'CustSettlement.OffsetRecid → CustTrans.RecId (payment transaction)'],
             note: 'CustSettlement is the linking record between the invoice CustTrans and payment CustTrans; settling closes both records',
           },
           {
             from: 'LedgerJournalTrans',
             to: 'BankAccountTable',
-            fields: ['LedgerJournalTrans.OffsetAccountType = Bank', 'LedgerJournalTrans.OffsetLedgerDimension → BankAccountTable.RecId'],
-            note: 'Payment journal line specifies which bank account receives the cash',
+            fields: ['LedgerJournalTrans.PaymentAccount → BankAccountTable.AccountID'],
+            note: 'Payment journal line specifies which bank account receives the cash (referenced via PaymentAccount/BankAccountId)',
           },
           {
             from: 'BankAccountTrans',
             to: 'BankAccountTable',
-            fields: ['BankAccountTrans.AccountId = BankAccountTable.AccountId', 'BankAccountTrans.Voucher = GeneralJournalEntry.Voucher'],
-            note: 'Each payment journal posting creates a BankAccountTrans row against the bank account; links to BankAccountTable (the account), LedgerJournalTrans (the journal line), and voucher → GeneralJournalEntry',
+            fields: ['BankAccountTrans.AccountId = BankAccountTable.AccountID'],
+            note: 'Each payment journal posting creates a BankAccountTrans row against the bank account',
           },
           {
             from: 'CustTrans',
@@ -446,7 +443,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Financial dimensions missing', 'Catalog access not set'],
         prerequisites: ['Vendors and products released', 'Financial dimensions'],
-        tables: ['PurchReqTable', 'PurchReqLine', 'VendTable', 'ReqPlanData', 'DimensionAttributeValueCombination'],
+        tables: ['PurchReqTable', 'PurchReqLine', 'VendTable', 'DimensionAttributeValueCombination'],
         approvals: ['Requisition approval workflow']
       },
       {
@@ -463,31 +460,31 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Posting profile not set', 'Vendor delivery terms missing'],
         prerequisites: ['Vendor, terms, charges, taxes'],
-        tables: ['PurchTable', 'PurchLine', 'VendTable', 'TaxGroup', 'ChargesSetup', 'PurchAgreementTable', 'PurchAgreementLine'],
+        tables: ['PurchTable', 'PurchLine', 'VendTable', 'TaxGroupHeading', 'MarkupAutoTable', 'AgreementHeader', 'AgreementLine'],
         relations: [
           {
             from: 'PurchTable',
             to: 'VendTable',
+            fields: ['PurchTable.OrderAccount = VendTable.AccountNum'],
             note: 'PO header references vendor',
-            fields: ['PurchTable.OrderAccount = VendTable.AccountNum']
           },
           {
             from: 'PurchLine',
             to: 'InventTable',
+            fields: ['PurchLine.ItemId = InventTable.ItemId'],
             note: 'PO line references released product',
-            fields: ['PurchLine.ItemId = InventTable.ItemId']
           },
           {
             from: 'PurchTable',
-            to: 'PurchAgreementTable',
-            fields: ['PurchTable.Agreement = PurchAgreementTable.RecId'],
-            note: 'A purchase order can be released against a purchase agreement; PurchTable.Agreement FK references PurchAgreementTable.RecId to inherit agreed pricing',
+            to: 'AgreementHeader',
+            fields: ['PurchTable.MatchingAgreement = AgreementHeader.RecId'],
+            note: 'A purchase order can be released against a purchase agreement; PurchTable.MatchingAgreement FK references AgreementHeader.RecId (purchase agreement classification) to inherit agreed pricing',
           },
           {
-            from: 'PurchAgreementLine',
-            to: 'PurchAgreementTable',
-            fields: ['PurchAgreementLine.PurchAgreementId = PurchAgreementTable.PurchAgreementId'],
-            note: 'Each PurchAgreementLine specifies a quantity or value commitment for one item under the parent PurchAgreementTable',
+            from: 'AgreementLine',
+            to: 'AgreementHeader',
+            fields: ['AgreementLine.Agreement = AgreementHeader.RecId'],
+            note: 'Each AgreementLine specifies a quantity or value commitment for one item under the parent AgreementHeader',
           },
         ],
         approvals: ['PO approval workflow']
@@ -497,7 +494,7 @@ export const flows: Flow[] = [
         title: 'Product Receipt',
         description: 'Receive goods/services and update on-hand.',
         roles: ['Warehouse'],
-        menuPaths: ['Procurement and sourcing > Purchase orders > Product receipt'],
+        menuPaths: ['Accounts payable > Inquiries and reports > Purchase orders > Product receipt'],
         docs: [
           {
             title: 'Product receipts against purchase orders',
@@ -527,14 +524,14 @@ export const flows: Flow[] = [
           {
             from: 'VendInvoiceTrans',
             to: 'PurchLine',
+            fields: ['VendInvoiceTrans.PurchID = PurchLine.PurchId', 'VendInvoiceTrans.LineNum = PurchLine.LineNumber'],
             note: 'Invoice lines match PO lines',
-            fields: ['VendInvoiceTrans.PurchId = PurchLine.PurchId', 'VendInvoiceTrans.LineNum = PurchLine.LineNumber']
           },
           {
             from: 'VendInvoiceJour',
-            to: 'VendTrans',
-            note: 'Posting creates vendor transactions',
-            fields: ['VendInvoiceJour.InvoiceId → VendTrans.Invoice', 'VendTrans.Voucher from posting']
+            to: 'PurchTable',
+            fields: ['VendInvoiceJour.PurchId = PurchTable.PurchId'],
+            note: 'Posted vendor invoice header references the purchase order it was posted from',
           },
           {
             from: 'VendInvoiceInfoTable',
@@ -560,7 +557,7 @@ export const flows: Flow[] = [
         docs: [
           {
             title: 'Vendor payment overview',
-            url: 'https://learn.microsoft.com/dynamics365/finance/accounts-payable/vendor-payments-overview'
+            url: 'https://learn.microsoft.com/dynamics365/finance/cash-bank-management/tasks/vendor-payment-overview'
           }
         ],
         pitfalls: ['Method of payment / bank not set', 'Settlement parameters wrong'],
@@ -595,18 +592,28 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Coverage groups missing', 'Forecast model not selected'],
         prerequisites: ['Coverage groups', 'Forecast model', 'Master plan'],
-        tables: ['ReqTrans', 'ReqPlanSched', 'ReqPO', 'ReqPOPlanVersion', 'InventForecastTable'],
+        tables: ['ReqTrans', 'ReqPlanSched', 'ReqPO', 'ReqPlanVersion', 'ForecastSales'],
         relations: [
-          { from: 'ReqTrans', to: 'InventForecastTable', note: 'Forecast demand drives planned orders' },
-          { from: 'ReqPO', to: 'PurchTable', note: 'Planned purchase orders firm into POs' }
-        ]
+          {
+            from: 'ReqTrans',
+            to: 'ReqPlanVersion',
+            fields: ['ReqTrans.PlanVersion = ReqPlanVersion.RecId'],
+            note: 'Planned transactions belong to a master plan version (planning run); forecast lines feed planned orders',
+          },
+          {
+            from: 'ReqPO',
+            to: 'PurchTable',
+            fields: ['ReqPO.PurchId = PurchTable.PurchId'],
+            note: 'Planned purchase orders firm into POs',
+          },
+        ],
       },
       {
         id: 'bom',
         title: 'BOM / Route',
         description: 'Model materials and operations.',
         roles: ['Production'],
-        menuPaths: ['Product information management > BOMs', 'Production control > Routes'],
+        menuPaths: ['Product information management > Bills of materials and formulas > Bill of materials', 'Production control > Routes'],
         docs: [
           {
             title: 'Bills of materials and formulas',
@@ -619,17 +626,17 @@ export const flows: Flow[] = [
         relations: [
           {
             from: 'BOMVersion',
-            to: 'BOM',
-            note: 'Approved/activated BOM versions',
-            fields: ['BOMVersion.BOMId = BOM.BOMId']
+            to: 'BOMTable',
+            fields: ['BOMVersion.BOMId = BOMTable.BOMId'],
+            note: 'Approved/activated BOM versions reference the BOM header; BOM holds the version lines',
           },
           {
             from: 'RouteOpr',
             to: 'RouteTable',
+            fields: ['RouteOpr.RouteRelation = RouteTable.RouteId'],
             note: 'Operations tied to route header',
-            fields: ['RouteOpr.RouteId = RouteTable.RouteId']
-          }
-        ]
+          },
+        ],
       },
       {
         id: 'release',
@@ -650,16 +657,16 @@ export const flows: Flow[] = [
           {
             from: 'ProdBOM',
             to: 'BOM',
-            note: 'Production order BOM explosion',
-            fields: ['ProdBOM.BOMId = BOM.BOMId', 'ProdBOM.ProdId = ProdTable.ProdId']
+            fields: ['ProdBOM.BOMRefRecId = BOM.RecId', 'ProdBOM.ProdId = ProdTable.ProdId'],
+            note: 'Production order BOM lines reference the BOM version used for the order',
           },
           {
             from: 'ProdRoute',
-            to: 'RouteTable',
-            note: 'Route copied to production order',
-            fields: ['ProdRoute.RouteId = RouteTable.RouteId', 'ProdRoute.ProdId = ProdTable.ProdId']
-          }
-        ]
+            to: 'RouteOpr',
+            fields: ['ProdRoute.RouteOprRefRecId = RouteOpr.RecId', 'ProdRoute.ProdId = ProdTable.ProdId'],
+            note: 'Route copied to production order; each production route line references the route operation it was copied from',
+          },
+        ],
       },
       {
         id: 'execute',
@@ -675,21 +682,21 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Backflushing not set', 'License plate tracking mismatches'],
         prerequisites: ['Flushing principles', 'Operational resources and routes'],
-        tables: ['ProdTable', 'ProdJournalTable', 'ProdJournalTrans', 'ProdRouteJob', 'InventTrans'],
+        tables: ['ProdTable', 'ProdJournalTable', 'ProdJournalProd', 'ProdRouteJob', 'InventTrans'],
         relations: [
           {
-            from: 'ProdJournalTrans',
+            from: 'ProdJournalProd',
             to: 'ProdTable',
+            fields: ['ProdJournalProd.ProdId = ProdTable.ProdId'],
             note: 'Production journals tied to order',
-            fields: ['ProdJournalTrans.ProdId = ProdTable.ProdId']
           },
           {
-            from: 'ProdJournalTrans',
-            to: 'InventTrans',
-            note: 'RAF and consumption update inventory transactions',
-            fields: ['ProdJournalTrans.InventTransId = InventTrans.InventTransId']
-          }
-        ]
+            from: 'ProdJournalProd',
+            to: 'InventTransOrigin',
+            fields: ['ProdJournalProd.InventTransId = InventTransOrigin.InventTransId'],
+            note: 'RAF and consumption update inventory transactions via the inventory transaction origin',
+          },
+        ],
       },
       {
         id: 'cost',
@@ -705,7 +712,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Costing version not active', 'Inventory close blocked'],
         prerequisites: ['Costing version', 'Inventory close schedule'],
-        tables: ['InventSettlement', 'InventTrans', 'CostCalculationResult', 'ProdCalcTrans', 'LedgerTrans'],
+        tables: ['InventSettlement', 'InventTrans', 'ProdCalcTrans', 'LedgerTrans'],
         relations: [
           {
             from: 'ProdCalcTrans',
@@ -754,20 +761,20 @@ export const flows: Flow[] = [
           {
             from: 'InventTable',
             to: 'EcoResProduct',
-            note: 'Released product (per legal entity) links back to the shared global product definition',
             fields: ['InventTable.Product → EcoResProduct.RecId'],
+            note: 'Released product (per legal entity) links back to the shared global product definition',
           },
           {
             from: 'InventTableModule',
             to: 'InventTable',
-            note: 'Up to three rows per item (ModuleType 1/2/3) carry module-specific unit, price, and discount',
             fields: ['InventTableModule.ItemId → InventTable.ItemId'],
+            note: 'Up to three rows per item (ModuleType 1/2/3) carry module-specific unit, price, and discount',
           },
           {
-            from: 'InventTable',
+            from: 'InventModelGroupItem',
             to: 'InventModelGroup',
-            note: 'Determines costing method (FIFO/StdCost/etc.) and physical/financial posting policy',
-            fields: ['InventTable.ModelGroupId → InventModelGroup.ModelGroupId'],
+            fields: ['InventModelGroupItem.ModelGroupId = InventModelGroup.ModelGroupId'],
+            note: 'Item model group assigned per item (InventModelGroupItem); determines costing method (FIFO/StdCost/etc.) and physical/financial posting policy',
           },
           {
             from: 'EcoResCategory',
@@ -776,10 +783,10 @@ export const flows: Flow[] = [
             note: 'Product category node in a hierarchy; products assigned via EcoResProductCategory',
           },
           {
-            from: 'InventTable',
+            from: 'InventItemGroupItem',
             to: 'InventItemGroup',
-            fields: ['InventTable.ItemGroupId = InventItemGroup.ItemGroupId'],
-            note: 'Item group controls inventory posting profile (COGS, variance accounts) and tax item groups per legal entity',
+            fields: ['InventItemGroupItem.ItemGroupId = InventItemGroup.ItemGroupId'],
+            note: 'Item group assigned per item (InventItemGroupItem); drives inventory posting profile and tax item groups',
           },
         ],
       },
@@ -788,7 +795,7 @@ export const flows: Flow[] = [
         title: 'On-hand and Reservations',
         description: 'Monitor availability and reservations.',
         roles: ['Warehouse', 'Sales', 'Planner'],
-        menuPaths: ['Inventory management > Inquiries > On-hand'],
+        menuPaths: ['Inventory management > Inquiries and reports > On-hand inventory'],
         docs: [
           {
             title: 'Inventory on-hand list',
@@ -848,7 +855,7 @@ export const flows: Flow[] = [
         title: 'Cycle Counting',
         description: 'Count and reconcile on-hand.',
         roles: ['Warehouse', 'Controller'],
-        menuPaths: ['Warehouse management > Inquiries and reports > Counting journals'],
+        menuPaths: ['Inventory management > Journal entries > Item counting > Counting'],
         docs: [
           {
             title: 'Cycle counting',
@@ -857,21 +864,21 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Counting journals blocked by open work', 'Thresholds not set'],
         prerequisites: ['Counting groups', 'Work policy'],
-        tables: ['WHSCountingJournalTable', 'WHSCountingJournalLine', 'InventJournalTable', 'InventJournalTrans'],
+        tables: ['WHSCycleCountPlan', 'WHSWorkLineCycleCount', 'InventJournalTable', 'InventJournalTrans'],
         relations: [
           {
-            from: 'WHSCountingJournalLine',
-            to: 'InventJournalTrans',
-            note: 'Counting updates inventory journal lines',
-            fields: ['WHSCountingJournalLine.JournalId = InventJournalTrans.JournalId']
+            from: 'WHSWorkLineCycleCount',
+            to: 'WHSWorkTable',
+            fields: ['WHSWorkLineCycleCount.WorkId = WHSWorkTable.WorkId'],
+            note: 'Cycle count plans generate count work; counted quantities are posted via counting journals (InventJournalTable/InventJournalTrans)',
           },
           {
             from: 'InventJournalTrans',
-            to: 'InventTrans',
-            note: 'Posting creates inventory transactions',
-            fields: ['InventJournalTrans.InventTransId = InventTrans.InventTransId']
-          }
-        ]
+            to: 'InventTransOrigin',
+            fields: ['InventJournalTrans.InventTransId = InventTransOrigin.InventTransId'],
+            note: 'Posting creates inventory transactions via the inventory transaction origin',
+          },
+        ],
       },
       {
         id: 'close',
@@ -887,7 +894,7 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Open production or transfers blocking', 'High variance from costing version'],
         prerequisites: ['Costing version final', 'All POs/SOs posted'],
-        tables: ['InventSettlement', 'InventTrans', 'InventCostListTable', 'LedgerTrans'],
+        tables: ['InventSettlement', 'InventTrans', 'InventCostList', 'LedgerTrans'],
         relations: [
           {
             from: 'InventSettlement',
@@ -953,16 +960,16 @@ export const flows: Flow[] = [
           {
             from: 'ProjWBSActivity',
             to: 'ProjTable',
+            fields: ['ProjWBSActivity.ProjId = ProjTable.ProjId'],
             note: 'WBS activities belong to project',
-            fields: ['ProjWBSActivity.ProjId = ProjTable.ProjId']
           },
           {
             from: 'ProjFundingSource',
             to: 'ProjInvoiceTable',
-            note: 'Funding rules drive billing',
-            fields: ['ProjFundingSource.ProjId = ProjInvoiceTable.ProjId']
-          }
-        ]
+            fields: ['ProjFundingSource.ContractId = ProjInvoiceTable.ProjInvoiceProjId'],
+            note: 'Funding rules are linked to the project billing contract (ProjInvoiceTable)',
+          },
+        ],
       },
       {
         id: 'proj-exec',
@@ -973,7 +980,7 @@ export const flows: Flow[] = [
         docs: [
           {
             title: 'Project transactions overview',
-            url: 'https://learn.microsoft.com/en-us/dynamics365/project-operations/prod-pma/project-transactions-overview'
+            url: 'https://learn.microsoft.com/dynamics365/project-operations/prod-pma/overview-project-management-accounting'
           }
         ],
         pitfalls: ['Category validation failing', 'Resource not assigned'],
@@ -1008,25 +1015,13 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['On-account setup missing', 'Retainage not configured'],
         prerequisites: ['On-account setup', 'Funding rules'],
-        tables: ['ProjInvoiceTable', 'ProjInvoiceTrans', 'CustInvoiceTable', 'CustInvoiceLine', 'ProjOnAccTrans'],
+        tables: ['ProjInvoiceTable', 'ProjInvoiceJour', 'ProjOnAccTrans'],
         relations: [
           {
-            from: 'ProjOnAccTrans',
-            to: 'ProjInvoiceTrans',
-            note: 'On-account lines become invoice lines',
-            fields: ['ProjOnAccTrans.InvoiceId = ProjInvoiceTrans.InvoiceId', 'ProjOnAccTrans.ProjId = ProjInvoiceTrans.ProjId']
-          },
-          {
-            from: 'ProjInvoiceTrans',
-            to: 'CustInvoiceTable',
-            note: 'Project invoices create customer free-text invoice headers',
-            fields: ['ProjInvoiceTrans.InvoiceId = CustInvoiceTable.InvoiceId']
-          },
-          {
-            from: 'CustInvoiceTable',
-            to: 'CustInvoiceLine',
-            note: 'Each free-text invoice header has one or more draft lines (pre-posting)',
-            fields: ['CustInvoiceLine.ParentRecId = CustInvoiceTable.RecId'],
+            from: 'ProjInvoiceJour',
+            to: 'ProjInvoiceTable',
+            fields: ['ProjInvoiceJour.ProjInvoiceProjId = ProjInvoiceTable.ProjInvoiceProjId'],
+            note: 'Posted project invoice header references the project billing contract',
           },
         ],
         approvals: ['Invoice approval workflow (optional)']
@@ -1080,7 +1075,7 @@ export const flows: Flow[] = [
         title: 'GL & Calendar Setup',
         description: 'Ledger, currency, periods, and dimensions.',
         roles: ['Controller'],
-        menuPaths: ['General ledger > Ledger setup'],
+        menuPaths: ['General ledger > Setup > Ledger'],
         docs: [
           {
             title: 'Plan your chart of accounts',
@@ -1089,43 +1084,43 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Ledger calendar closed', 'Posting layers misused'],
         prerequisites: ['Ledger, calendars, currencies', 'Dimensions'],
-        tables: ['Ledger', 'LedgerCalendar', 'Currency', 'DimensionHierarchy', 'DimensionAttributeValueCombination', 'CompanyInfo', 'OMOperatingUnit'],
+        tables: ['Ledger', 'FiscalCalendar', 'Currency', 'DimensionHierarchy', 'DimensionAttributeValueCombination', 'CompanyInfo', 'OMOperatingUnit'],
         relations: [
           {
             from: 'MainAccount',
             to: 'LedgerChartOfAccounts',
-            note: 'Each main account belongs to exactly one chart of accounts',
             fields: ['MainAccount.LedgerChartOfAccounts → LedgerChartOfAccounts.RecId'],
+            note: 'Each main account belongs to exactly one chart of accounts',
           },
           {
             from: 'Ledger',
             to: 'LedgerChartOfAccounts',
-            note: 'A legal entity ledger is assigned to one chart of accounts; chart can be shared across entities',
             fields: ['Ledger.ChartOfAccounts → LedgerChartOfAccounts.RecId'],
+            note: 'A legal entity ledger is assigned to one chart of accounts; chart can be shared across entities',
           },
           {
             from: 'FiscalCalendarPeriod',
             to: 'FiscalCalendar',
-            note: 'Each accounting period belongs to a fiscal calendar',
             fields: ['FiscalCalendarPeriod.FiscalCalendar → FiscalCalendar.RecId'],
+            note: 'Each accounting period belongs to a fiscal calendar',
           },
           {
             from: 'Ledger',
             to: 'FiscalCalendar',
-            note: 'Legal entity ledger references its fiscal calendar, governing which periods are available for posting',
             fields: ['Ledger.FiscalCalendar → FiscalCalendar.RecId'],
+            note: 'Legal entity ledger references its fiscal calendar, governing which periods are available for posting',
           },
           {
             from: 'Ledger',
             to: 'CompanyInfo',
-            fields: ['Ledger.PrimaryForLegalEntity = CompanyInfo.RecId', 'GeneralJournalEntry.DataAreaId = CompanyInfo.DataArea'],
-            note: 'Legal entity configuration record — one row per company (DataAreaId) in the D365FO instance. Stores company name, registration numbers, VAT ID, address, and primary contact information.',
+            fields: ['Ledger.PrimaryForLegalEntity = CompanyInfo.RecId'],
+            note: 'Legal entity configuration record - each legal entity ledger record binds to its CompanyInfo record',
           },
           {
             from: 'DimensionAttributeValue',
             to: 'OMOperatingUnit',
             fields: ['DimensionAttributeValue.EntityInstance = OMOperatingUnit.RecId'],
-            note: 'Generic operating unit table — used as financial dimension values for BusinessUnit, Department, CostCenter, and similar org unit types.',
+            note: 'Generic operating unit table - used as financial dimension values for BusinessUnit, Department, CostCenter, and similar org unit types (polymorphic relation)',
           },
         ],
       },
@@ -1181,21 +1176,15 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Currency translation setup wrong', 'Main account mapping missing'],
         prerequisites: ['Consolidation group', 'Exchange rates', 'Account mappings'],
-        tables: ['LedgerConsolidate', 'LedgerConsolidateTrans', 'MainAccount', 'ExchangeRate'],
+        tables: ['LedgerConsolidateTemplate', 'LedgerConsolidateHist', 'MainAccount', 'ExchangeRate'],
         relations: [
           {
-            from: 'LedgerConsolidateTrans',
-            to: 'MainAccount',
-            note: 'Consolidation lines mapped to accounts',
-            fields: ['LedgerConsolidateTrans.MainAccount = MainAccount.MainAccountId']
+            from: 'LedgerConsolidateHist',
+            to: 'LedgerConsolidateTemplate',
+            fields: ['LedgerConsolidateHist.ConsolidateTemplate = LedgerConsolidateTemplate.RecId'],
+            note: 'Each consolidation run (history record) follows a consolidation template defining source legal entities, account mappings, and currency translation',
           },
-          {
-            from: 'LedgerConsolidateTrans',
-            to: 'ExchangeRate',
-            note: 'Currency translation applied',
-            fields: ['LedgerConsolidateTrans.CurrencyCode = ExchangeRate.CurrencyCode']
-          }
-        ]
+        ],
       },
       {
         id: 'close',
@@ -1216,16 +1205,16 @@ export const flows: Flow[] = [
           {
             from: 'LedgerPeriodClose',
             to: 'LedgerTrans',
+            fields: ['Period/ledger linkage via LedgerPeriodClose.Ledger = LedgerTrans.Ledger'],
             note: 'Close tasks depend on ledger postings completion',
-            fields: ['Period/ledger linkage via LedgerPeriodClose.Ledger = LedgerTrans.Ledger']
           },
           {
             from: 'SubledgerVoucherGeneralJournalEntry',
-            to: 'LedgerTrans',
-            note: 'Subledger vouchers summarized in ledger',
-            fields: ['SubledgerVoucherGeneralJournalEntry.Voucher = LedgerTrans.Voucher']
-          }
-        ]
+            to: 'GeneralJournalEntry',
+            fields: ['SubledgerVoucherGeneralJournalEntry.GeneralJournalEntry = GeneralJournalEntry.RecId'],
+            note: 'Subledger vouchers link to their posted GL journal entry',
+          },
+        ],
       }
     ],
     edges: [
@@ -1421,13 +1410,12 @@ export const flows: Flow[] = [
         prerequisites: ['Service agreements', 'Billing rules'],
         tables: ['SMASubscriptionTable', 'SMAAgreementTable', 'SMAAgreementLine', 'CustTable'],
         relations: [
-          { from: 'SMAAgreementLine', to: 'SMAAgreementTable', note: 'Lines belong to their agreement header', fields: ['SMAAgreementLine.AgreementId → SMAAgreementTable.AgreementId'] },
           {
             from: 'SMAAgreementLine',
-            to: 'SMASubscriptionTable',
-            note: 'Subscription details per agreement',
-            fields: ['SMAAgreementLine.SubscriptionId = SMASubscriptionTable.SubscriptionId']
-          }
+            to: 'SMAAgreementTable',
+            fields: ['SMAAgreementLine.AgreementId → SMAAgreementTable.AgreementId'],
+            note: 'Lines belong to their agreement header',
+          },
         ],
         approvals: ['Agreement approval (optional)']
       },
@@ -1450,16 +1438,16 @@ export const flows: Flow[] = [
           {
             from: 'SMAServiceOrderLine',
             to: 'SMAAgreementLine',
+            fields: ['SMAServiceOrderLine.AgreementId = SMAAgreementLine.AgreementId', 'SMAServiceOrderLine.AgreementLineNum = SMAAgreementLine.AgreementLineNum'],
             note: 'Lines consume agreement coverage',
-            fields: ['SMAServiceOrderLine.AgreementLineId = SMAAgreementLine.AgreementLineId']
           },
           {
             from: 'SMAServiceOrderLine',
             to: 'SMAServiceObjectTable',
+            fields: ['SMAServiceOrderLine.ServiceObjectId = SMAServiceObjectTable.ServiceObjectId'],
             note: 'Lines reference service objects/assets',
-            fields: ['SMAServiceOrderLine.ServiceObjectId = SMAServiceObjectTable.ServiceObjectId']
-          }
-        ]
+          },
+        ],
       },
       {
         id: 'dispatch',
@@ -1475,15 +1463,15 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Calendar not set', 'Travel time not considered'],
         prerequisites: ['Resource calendars', 'Skills/skills mapping'],
-        tables: ['SMAServiceOrderTable', 'SMADispatchBoard', 'WrkCtrTable', 'ResResource'],
+        tables: ['SMAServiceOrderTable', 'SMADispatchTeamTable', 'WrkCtrTable', 'ResResourceIdentifier'],
         relations: [
           {
-            from: 'SMADispatchBoard',
-            to: 'SMAServiceOrderTable',
-            note: 'Dispatch assigns technicians to orders',
-            fields: ['Work assignment references SMAServiceOrderTable.ServiceOrderId']
-          }
-        ]
+            from: 'SMADispatchWorkerSetup',
+            to: 'SMADispatchTeamTable',
+            fields: ['SMADispatchWorkerSetup.DispatchTeamId = SMADispatchTeamTable.DispatchTeamId'],
+            note: 'Dispatch teams group technicians; workers are assigned to dispatch teams via SMADispatchWorkerSetup',
+          },
+        ],
       },
       {
         id: 'service-bill',
@@ -1499,26 +1487,9 @@ export const flows: Flow[] = [
         ],
         pitfalls: ['Posting profiles missing', 'Subscription period misaligned'],
         prerequisites: ['Posting profiles', 'Subscription setup'],
-        tables: ['SMAServiceOrderTable', 'SMAServiceOrderLine', 'CustInvoiceTable', 'CustInvoiceLine', 'CustInvoiceTrans', 'SMAContractTable'],
+        tables: ['SMAServiceOrderTable', 'SMAServiceOrderLine', 'CustInvoiceTrans', 'SMASubscriptionTable'],
         relations: [
-          {
-            from: 'SMAServiceOrderLine',
-            to: 'CustInvoiceTrans',
-            note: 'Service order lines become invoice lines',
-            fields: ['CustInvoiceTrans.ServiceOrderLineId = SMAServiceOrderLine.LineNum']
-          },
-          {
-            from: 'SMAContractTable',
-            to: 'CustInvoiceTable',
-            note: 'Contract billing drives customer free-text invoice headers',
-            fields: ['SMAContractTable.ContractId → CustInvoiceTable.ContractId']
-          },
-          {
-            from: 'CustInvoiceTable',
-            to: 'CustInvoiceLine',
-            note: 'Free-text invoice header has draft line rows before posting',
-            fields: ['CustInvoiceLine.ParentRecId = CustInvoiceTable.RecId'],
-          },
+
         ],
         approvals: ['Invoice approval workflow (optional)']
       }
@@ -1568,7 +1539,7 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Default mode of delivery (e.g. truck, air) carried onto sales orders.",
       },
       {
-        name: "SalesTaxGroup",
+        name: "TaxGroup",
         type: "String",
         fkTarget: "TaxGroupHeading",
         note: "Sales tax group assigned to customer, combined with item tax group to determine applicable taxes.",
@@ -1737,9 +1708,9 @@ export const tableDefs: Record<string, TableDef> = {
         note: "System-generated primary key.",
       },
       {
-        name: "Relation",
+        name: "relation",
         type: "Enum",
-        note: "Agreement type: PriceSales, LineDiscSales, MultiLineDiscSales, EndDiscSales \u2014 determines how Amount/Percent is applied.",
+        note: "Party/product scope of the trade agreement line (price, discount, line discount, multiline discount).",
       },
       {
         name: "AccountCode",
@@ -1793,9 +1764,9 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Links back to the parent trade-agreement journal header.",
       },
       {
-        name: "Relation",
+        name: "relation",
         type: "Enum",
-        note: "Type of price/discount being staged (mirrors PriceDiscTable.Relation).",
+        note: "Party/product scope of the trade agreement line (price, discount, line discount, multiline discount).",
       },
       {
         name: "AccountCode",
@@ -1849,26 +1820,21 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Lifecycle status: Created / Sent / Confirmed / Lost / Cancelled.",
       },
       {
-        name: "ExpiryDate",
+        name: "QuotationExpiryDate",
         type: "Date",
-        note: "Date after which the quoted prices/terms are no longer valid.",
+        note: "Date after which the quotation is no longer valid.",
       },
       {
-        name: "SalesId",
+        name: "SalesIdRef",
         type: "String",
         fkTarget: "SalesTable.SalesId",
-        note: "Populated when the quotation is converted to a sales order \u2014 links the two documents.",
+        note: "Sales order created from the confirmed quotation (filled on conversion).",
       },
       {
         name: "CurrencyCode",
         type: "String",
         fkTarget: "Currency",
         note: "Transaction currency for all amounts on this quotation.",
-      },
-      {
-        name: "VersionNum",
-        type: "Int",
-        note: "Revision counter incremented when a sent quote is re-opened and edited.",
       },
     ],
   },
@@ -1903,7 +1869,7 @@ export const tableDefs: Record<string, TableDef> = {
       {
         name: "InventDimId",
         type: "String",
-        fkTarget: "InventDim.InventDimId",
+        fkTarget: "InventDim.inventDimId",
         note: "Inventory dimension combination (site, warehouse, color, size, etc.).",
       },
       {
@@ -1978,103 +1944,99 @@ export const tableDefs: Record<string, TableDef> = {
 
   SalesAgreementTable: {
     name: "SalesAgreementTable",
-    description: "Sales agreement (blanket order) header table. Each row defines a long-running commitment between the company and a customer for specified goods or value, with effective and expiry dates. Sales orders released against the agreement inherit negotiated prices and discounts, and consumed quantity/value is tracked against the committed totals. Not present in the CDM schema; see the D365 Supply Chain documentation for field reference.",
+    description: "Sales agreement (blanket order) header. In D365FO sales agreements are stored in the shared agreement framework: AgreementHeader with the SalesAgreement classification. Sales orders released against the agreement inherit negotiated prices and track fulfilment against committed totals.",
     module: "Sales and Marketing",
     docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/sales-marketing/sales-agreements",
     fields: [
       {
-        name: "RecId",
-        type: "Int64",
-        note: "Surrogate primary key; referenced by SalesTable.Agreement",
-      },
-      {
-        name: "SalesAgreementId",
-        type: "String",
-        note: "Natural primary key — agreement number, auto-generated by the number sequence",
-      },
-      {
-        name: "OrderAccount",
-        type: "String",
-        fkTarget: "CustTable.AccountNum",
-        note: "Customer account number party to this agreement",
-      },
-      {
-        name: "CurrencyCode",
-        type: "String",
-        fkTarget: "Currency.CurrencyCode",
-        note: "Agreement currency; committed amounts are expressed in this currency",
-      },
-      {
-        name: "EffectiveDate",
-        type: "Date",
-        note: "Date from which the agreement is valid; orders can only be released after this date",
-      },
-      {
-        name: "ExpirationDate",
-        type: "Date",
-        note: "Date after which the agreement expires; orders cannot be released against an expired agreement",
-      },
-      {
-        name: "Status",
-        type: "Enum",
-        note: "Agreement status enum: 0=On hold, 1=Effective, 2=Closed — controls whether new orders can be released",
-      },
-      {
         name: "AgreementClassification",
         type: "Int64",
         fkTarget: "AgreementClassification.RecId",
-        note: "FK to the agreement classification defining the type and commitment method (quantity vs. value)",
+        note: "Agreement classification (SalesAgreement) that identifies this as a sales agreement.",
+      },
+      {
+        name: "Currency",
+        type: "String",
+        fkTarget: "Currency.CurrencyCode",
+        note: "Currency of the agreement.",
+      },
+      {
+        name: "DefaultDimension",
+        type: "Int64",
+        fkTarget: "DimensionAttributeValueSet.RecId",
+        note: "Default financial dimensions for the agreement.",
+      },
+      {
+        name: "DocumentTitle",
+        type: "String",
+        note: "Agreement title.",
+      },
+      {
+        name: "EarliestLineEffectiveDate",
+        type: "Date",
+        note: "Earliest effective date across all agreement lines.",
+      },
+      {
+        name: "LatestLineExpirationDate",
+        type: "Date",
+        note: "Latest expiration date across all agreement lines.",
+      },
+      {
+        name: "AgreementState",
+        type: "Enum",
+        note: "State of the agreement (validated, on hold, closed, etc.).",
       },
     ],
   },
 
   SalesAgreementLine: {
     name: "SalesAgreementLine",
-    description: "Sales agreement commitment line. Each row represents one item-level commitment under a SalesAgreementTable header, specifying either a quantity commitment (e.g. 1000 units of item X) or a value commitment (e.g. £50,000 of any item). Released sales order lines consume committed quantity/amount and the system tracks fulfilment progress. Not present in the CDM schema.",
+    description: "Sales agreement commitment line. In D365FO stored in the shared AgreementLine table under a SalesAgreement-classified AgreementHeader; each line specifies a quantity or value commitment for an item. Released sales order lines consume the committed quantity/amount.",
     module: "Sales and Marketing",
     docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/sales-marketing/sales-agreements",
     fields: [
       {
-        name: "RecId",
+        name: "Agreement",
         type: "Int64",
-        note: "Surrogate primary key",
+        fkTarget: "AgreementHeader.RecId",
+        note: "FK to the parent agreement header.",
       },
       {
-        name: "SalesAgreementId",
-        type: "String",
-        fkTarget: "SalesAgreementTable.SalesAgreementId",
-        note: "FK to the parent agreement header",
-      },
-      {
-        name: "LineNum",
-        type: "Decimal",
-        note: "Line sequence number within the agreement",
+        name: "AgreementLineType",
+        type: "Enum",
+        note: "Line type: item or category commitment.",
       },
       {
         name: "ItemId",
         type: "String",
         fkTarget: "InventTable.ItemId",
-        note: "Item for this commitment; empty for value-only (non-item-specific) commitment lines",
+        note: "Item the commitment applies to.",
       },
       {
-        name: "UnitId",
-        type: "String",
-        note: "Unit of measure for the committed quantity (e.g. 'pcs', 'kg'); relevant for quantity commitments",
+        name: "Category",
+        type: "Int64",
+        fkTarget: "EcoResCategory.RecId",
+        note: "Procurement/sales category the commitment applies to.",
       },
       {
-        name: "CommittedQuantity",
+        name: "LineNumber",
         type: "Decimal",
-        note: "Total quantity committed; 0 for value-only lines. Released order lines decrement the remaining quantity.",
+        note: "Line number within the agreement.",
       },
       {
-        name: "CommittedAmount",
-        type: "Decimal",
-        note: "Total value committed in the agreement currency; 0 for quantity-only lines",
+        name: "EffectiveDate",
+        type: "Date",
+        note: "Start of the commitment period.",
       },
       {
-        name: "MaxIsEnforced",
+        name: "ExpirationDate",
+        type: "Date",
+        note: "End of the commitment period.",
+      },
+      {
+        name: "IsMaxEnforced",
         type: "Enum",
-        note: "Controls whether the committed quantity/amount is a hard maximum (1=enforced) or a soft target (0=not enforced)",
+        note: "Whether the commitment quantity/amount is a maximum that cannot be exceeded.",
       },
     ],
   },
@@ -2104,7 +2066,7 @@ export const tableDefs: Record<string, TableDef> = {
       {
         name: "InventDimId",
         type: "String",
-        fkTarget: "InventDim.InventDimId",
+        fkTarget: "InventDim.inventDimId",
         note: "Inventory dimension combination specifying site, warehouse, batch, serial, etc.",
       },
       {
@@ -2136,9 +2098,9 @@ export const tableDefs: Record<string, TableDef> = {
     docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/inventory/main/inventdim",
     fields: [
       {
-        name: "InventDimId",
+        name: "inventDimId",
         type: "String",
-        note: "Primary key \u2014 SHA1 hash of the dimension value combination; referenced as FK across all inventory-touching tables.",
+        note: "System-generated hash key identifying the unique combination of dimension values (primary key, camelCase in AOT).",
       },
       {
         name: "InventSiteId",
@@ -2159,27 +2121,25 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Bin/aisle location within the warehouse.",
       },
       {
-        name: "InventBatchId",
+        name: "inventBatchId",
         type: "String",
-        fkTarget: "InventBatch",
-        note: "Batch/lot number \u2014 only populated when batch tracking is active.",
+        note: "Batch number dimension value (camelCase in AOT).",
       },
       {
-        name: "InventSerialId",
+        name: "inventSerialId",
         type: "String",
-        note: "Serial number \u2014 only populated when serial tracking is active.",
+        note: "Serial number dimension value (camelCase in AOT).",
       },
       {
-        name: "ConfigId",
+        name: "configId",
         type: "String",
-        fkTarget: "InventDimConfiguration",
-        note: "Product configuration dimension (used in product configurator scenarios).",
+        note: "Product configuration dimension value (camelCase in AOT).",
       },
     ],
   },
   InventTable: {
     name: "InventTable",
-    description: "Released product (item) master holding product type, dimension group assignments, unit of measure, and procurement defaults.",
+    description: "Released product (item) master per legal entity. Product-level attributes live on the shared EcoResProduct record; item group and model group are assigned per item via InventItemGroupItem and InventModelGroupItem in this D365FO version.",
     module: "Product Information Management",
     docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/productinformationmanagement/main/inventtable",
     fields: [
@@ -2189,33 +2149,33 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Primary key \u2014 item number used as FK in every transaction table.",
       },
       {
-        name: "ItemGroupId",
-        type: "String",
-        fkTarget: "InventItemGroup.ItemGroupId",
-        note: "Drives inventory posting profiles for GL account resolution.",
-      },
-      {
         name: "ItemType",
         type: "Enum",
         note: "Item / Service / BOM \u2014 controls whether inventory transactions are created.",
       },
       {
-        name: "UnitId",
-        type: "String",
-        fkTarget: "UnitOfMeasure",
-        note: "Primary stocking unit of measure.",
+        name: "Product",
+        type: "Int64",
+        fkTarget: "EcoResProduct.RecId",
+        note: "FK to the shared global product definition (EcoResProduct).",
       },
       {
-        name: "DimGroupId",
+        name: "ItemBuyerGroupId",
         type: "String",
-        fkTarget: "InventDimGroup",
-        note: "Tracking dimension group controlling batch and serial number policy.",
+        fkTarget: "InventBuyerGroup.Group",
+        note: "Default buyer group for procurement of this item.",
       },
       {
-        name: "StorageDimGroupId",
+        name: "ProdGroupId",
         type: "String",
-        fkTarget: "StorageDimGroup",
-        note: "Storage dimension group controlling site/warehouse/location policy.",
+        fkTarget: "ProdGroup.ProdGroupId",
+        note: "Default production group for this item.",
+      },
+      {
+        name: "DefaultDimension",
+        type: "Int64",
+        fkTarget: "DimensionAttributeValueSet.RecId",
+        note: "Default financial dimensions for inventory transactions of this item.",
       },
       {
         name: "NameAlias",
@@ -2241,11 +2201,6 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Open / InProcess / Closed / Cancelled \u2014 drives availability in the mobile device app.",
       },
       {
-        name: "WorkType",
-        type: "Enum",
-        note: "Source document type: SalesOrder, PurchaseOrder, TransferIssue, etc.",
-      },
-      {
         name: "ShipmentId",
         type: "String",
         fkTarget: "WHSShipmentTable.ShipmentId",
@@ -2258,10 +2213,10 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Links work to the outbound load/truck for transportation planning.",
       },
       {
-        name: "SalesId",
+        name: "OrderNum",
         type: "String",
         fkTarget: "SalesTable.SalesId",
-        note: "Source sales order for this picking work.",
+        note: "Originating document number (sales order, purchase order, production order, transfer order) that generated the work.",
       },
       {
         name: "WaveId",
@@ -2301,13 +2256,13 @@ export const tableDefs: Record<string, TableDef> = {
       {
         name: "InventDimId",
         type: "String",
-        fkTarget: "InventDim.InventDimId",
+        fkTarget: "InventDim.inventDimId",
         note: "Dimension combination (includes location, batch, serial) for this movement.",
       },
       {
-        name: "WQty",
+        name: "QtyWork",
         type: "Decimal",
-        note: "Expected quantity to be picked/put as directed by the system.",
+        note: "Quantity to be handled by this work line (pick/put quantity).",
       },
       {
         name: "QtyWork",
@@ -2334,10 +2289,10 @@ export const tableDefs: Record<string, TableDef> = {
         note: "The freight load this shipment is assigned to for transportation management.",
       },
       {
-        name: "SalesId",
+        name: "OrderNum",
         type: "String",
         fkTarget: "SalesTable.SalesId",
-        note: "Primary sales order reference for single-order shipments.",
+        note: "Originating order number that generated the shipment.",
       },
       {
         name: "ShipmentStatus",
@@ -2348,16 +2303,6 @@ export const tableDefs: Record<string, TableDef> = {
         name: "CarrierCode",
         type: "String",
         note: "Carrier account booked for this shipment.",
-      },
-      {
-        name: "BOLId",
-        type: "String",
-        note: "Bill of lading number assigned at shipment confirmation.",
-      },
-      {
-        name: "ShipDate",
-        type: "Date",
-        note: "Actual or planned ship date used for carrier scheduling.",
       },
     ],
   },
@@ -2378,16 +2323,6 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Open / Released / Shipped / Invoiced \u2014 mirrors the outbound fulfillment lifecycle.",
       },
       {
-        name: "ShipDate",
-        type: "Date",
-        note: "Planned departure date for the load.",
-      },
-      {
-        name: "CarrierId",
-        type: "String",
-        note: "Carrier master reference used for rate shopping and tender.",
-      },
-      {
         name: "ModeCode",
         type: "String",
         note: "Transport mode (truck, air, ocean) for rate/route determination.",
@@ -2397,11 +2332,6 @@ export const tableDefs: Record<string, TableDef> = {
         type: "String",
         fkTarget: "InventSite.SiteId",
         note: "Ship-from site for load planning.",
-      },
-      {
-        name: "CustomerRef",
-        type: "String",
-        note: "Customer-provided reference number printed on BOL.",
       },
     ],
   },
@@ -2423,15 +2353,16 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Item involved in the movement.",
       },
       {
-        name: "InventDimId",
+        name: "inventDimId",
         type: "String",
-        fkTarget: "InventDim.InventDimId",
-        note: "Dimension combination at the time of the transaction.",
+        fkTarget: "InventDim.inventDimId",
+        note: "Inventory dimension combination for the transaction (camelCase in AOT).",
       },
       {
-        name: "TransType",
-        type: "Enum",
-        note: "Business origin: Sales, Purchase, Counted, Transfer, Production, etc.",
+        name: "InventTransOrigin",
+        type: "Int64",
+        fkTarget: "InventTransOrigin.RecId",
+        note: "Link to the inventory transaction origin, which carries the transaction type and references the source document.",
       },
       {
         name: "StatusIssue",
@@ -2490,9 +2421,9 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Posting date used for due date and aging calculations.",
       },
       {
-        name: "SalesAmount",
+        name: "InvoiceAmount",
         type: "Decimal",
-        note: "Net invoice amount excluding tax.",
+        note: "Total invoice amount in the accounting currency.",
       },
       {
         name: "SumTax",
@@ -2500,9 +2431,9 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Total tax amount \u2014 detail in TaxTrans.",
       },
       {
-        name: "Voucher",
+        name: "LedgerVoucher",
         type: "String",
-        note: "GL voucher number; joins to LedgerJournalTrans and GeneralJournalAccountEntry.",
+        note: "Voucher number of the posted general ledger entries.",
       },
     ],
   },
@@ -2621,7 +2552,7 @@ export const tableDefs: Record<string, TableDef> = {
       {
         name: "InventDimId",
         type: "String",
-        fkTarget: "InventDim.InventDimId",
+        fkTarget: "InventDim.inventDimId",
         note: "Inventory dimension combination (site, warehouse, batch, etc.)",
       },
       {
@@ -2743,7 +2674,7 @@ export const tableDefs: Record<string, TableDef> = {
       {
         name: "InventDimId",
         type: "String",
-        fkTarget: "InventDim.InventDimId",
+        fkTarget: "InventDim.inventDimId",
         note: "Inventory dimension combination (site, warehouse, batch, serial, etc.)",
       },
       {
@@ -2776,10 +2707,10 @@ export const tableDefs: Record<string, TableDef> = {
         note: "User-assigned or sequence-generated invoice number.",
       },
       {
-        name: "CustAccount",
+        name: "OrderAccount",
         type: "String",
         fkTarget: "CustTable.AccountNum",
-        note: "Customer billed on this free text invoice.",
+        note: "Customer account for the free text invoice (stored in OrderAccount).",
       },
       {
         name: "InvoiceDate",
@@ -2787,10 +2718,10 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Posting and AR aging date.",
       },
       {
-        name: "PaymTermId",
+        name: "Payment",
         type: "String",
-        fkTarget: "PaymTerm",
-        note: "Payment terms override for this invoice.",
+        fkTarget: "PaymTerm.PaymTermId",
+        note: "Default payment terms for the free text invoice.",
       },
       {
         name: "DueDate",
@@ -2802,11 +2733,6 @@ export const tableDefs: Record<string, TableDef> = {
         type: "String",
         fkTarget: "Currency",
         note: "Invoice transaction currency.",
-      },
-      {
-        name: "InvoiceStatus",
-        type: "Enum",
-        note: "Created / InProcess / Posted / Cancelled.",
       },
     ],
   },
@@ -3175,16 +3101,15 @@ export const tableDefs: Record<string, TableDef> = {
 
   TaxGroup: {
     name: "TaxGroup",
-    description: "Sales tax group — defines the set of tax codes applicable to a customer or vendor. During tax calculation the intersection of the sales tax group (from CustTable/VendTable or transaction) and the item sales tax group (TaxItemGroupHeading) determines which tax codes apply. One row per named group.",
+    description: "Sales tax group header - defines the set of tax codes applicable to a customer, vendor, or transaction. The D365FO table is TaxGroupHeading.",
     module: "Tax",
-    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/tax/group/taxgroup",
+    docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/tax/group/taxgroupheading",
     fields: [
-      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
-      { name: "TaxGroup", type: "String", note: "Natural primary key — sales tax group code (e.g. 'DOMESTIC', 'EU', 'EXPORT')" },
-      { name: "Name", type: "String", note: "Human-readable description of the tax group" },
-      { name: "TaxRoundOff", type: "Decimal", note: "Rounding precision for tax amounts in this group" },
-      { name: "TaxRoundOffType", type: "Enum", note: "Rounding direction: 0=Ordinary, 1=Downward, 2=Upward" },
-      { name: "FreeTax", type: "Enum", note: "If set, transactions with this group are fully exempt from tax" },
+      { name: "TaxGroup", type: "String", note: "Sales tax group code (primary key)." },
+      { name: "TaxGroupName", type: "String", note: "Name of the sales tax group." },
+      { name: "TaxGroupRounding", type: "Enum", note: "Rounding method applied to tax amounts for the group." },
+      { name: "TaxGroupSetup", type: "Enum", note: "Tax calculation setup variant for the group (standard, India, etc.)." },
+      { name: "TaxPrintDetail", type: "Enum", note: "Level of tax detail printed on documents for this group." },
     ],
   },
 
@@ -3206,10 +3131,10 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Invoice-side CustTrans record being settled.",
       },
       {
-        name: "OffsetTransRecId",
+        name: "OffsetRecid",
         type: "Int64",
         fkTarget: "CustTrans.RecId",
-        note: "Payment-side (or credit note) CustTrans record providing the offset.",
+        note: "RecId of the offset (payment/credit) CustTrans transaction.",
       },
       {
         name: "SettleAmountCur",
@@ -3222,9 +3147,9 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Date the settlement was applied.",
       },
       {
-        name: "MarkedAsClosed",
-        type: "NoYes",
-        note: "Indicates the invoice CustTrans is fully closed after this settlement.",
+        name: "TransOpen",
+        type: "Int64",
+        note: "Reference to the settlement group record while the settlement is open.",
       },
     ],
   },
@@ -3256,14 +3181,9 @@ export const tableDefs: Record<string, TableDef> = {
         note: "1 once the batch has been posted to the GL; prevents further edits.",
       },
       {
-        name: "NumLines",
+        name: "NumOfLines",
         type: "Int",
-        note: "Count of LedgerJournalTrans lines in this batch.",
-      },
-      {
-        name: "Description",
-        type: "String",
-        note: "User-provided description for search/audit purposes.",
+        note: "Number of lines in the journal header.",
       },
     ],
   },
@@ -3290,10 +3210,10 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Ledger / Customer / Vendor / Bank / FixedAsset \u2014 determines FK target of AccountNum.",
       },
       {
-        name: "AccountNum",
-        type: "String",
-        fkTarget: "CustTable.AccountNum",
-        note: "Account reference; FK to CustTable.AccountNum when AccountType=Customer.",
+        name: "LedgerDimension",
+        type: "Int64",
+        fkTarget: "DimensionAttributeValueCombination.RecId",
+        note: "Posting account of the journal line, resolved to a ledger dimension (main account + financial dimensions).",
       },
       {
         name: "AmountCurDebit",
@@ -3324,9 +3244,9 @@ export const tableDefs: Record<string, TableDef> = {
     docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/finance/bank/main/bankaccounttable",
     fields: [
       {
-        name: "AccountId",
+        name: "AccountID",
         type: "String",
-        note: "Primary key \u2014 internal bank account identifier used in journal offset accounts.",
+        note: "Bank account identifier (primary key, capital ID in AOT).",
       },
       {
         name: "AccountNum",
@@ -3346,19 +3266,14 @@ export const tableDefs: Record<string, TableDef> = {
         note: "Denominated currency of this bank account.",
       },
       {
-        name: "BankAccountType",
+        name: "BankAccountStatus",
         type: "Enum",
-        note: "Checking / Savings / etc.",
+        note: "Hold status of the bank account (active or on hold).",
       },
       {
-        name: "BankIBAN",
+        name: "IBAN",
         type: "String",
-        note: "IBAN number for international wire transfers and SEPA payments.",
-      },
-      {
-        name: "SWIFT",
-        type: "String",
-        note: "SWIFT/BIC code identifying the bank for international payments.",
+        note: "International Bank Account Number for the account.",
       },
     ],
   },
@@ -3377,7 +3292,7 @@ export const tableDefs: Record<string, TableDef> = {
       {
         name: "AccountId",
         type: "String",
-        fkTarget: "BankAccountTable.AccountId",
+        fkTarget: "BankAccountTable.AccountID",
         note: "FK to the bank account this transaction belongs to",
       },
       {
@@ -3499,12 +3414,12 @@ export const tableDefs: Record<string, TableDef> = {
     docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/supplychain/procurementandsourcing/worksheetline/purchreqline",
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
-      { name: "PurchReqId", type: "String", fkTarget: "PurchReqTable.PurchReqId", note: "Links line to its requisition header" },
-      { name: "LineNumber", type: "Int32", note: "Sequential line number within the requisition" },
+      { name: "PurchReqTable", type: "Int64", fkTarget: "PurchReqTable.RecId", note: "FK to the parent purchase requisition header (RecId)." },
+      { name: "LineNum", type: "Decimal", note: "Line number within the requisition." },
       { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Product/item being requested; null if procurement category used" },
       { name: "VendAccount", type: "String", fkTarget: "VendTable.AccountNum", note: "Preferred vendor suggested by requester; not binding" },
-      { name: "Qty", type: "Decimal", note: "Requested quantity in the purchase unit of measure" },
-      { name: "Price", type: "Decimal", note: "Estimated unit price (purchase currency)" },
+      { name: "PurchQty", type: "Decimal", note: "Requested quantity." },
+      { name: "PurchPrice", type: "Decimal", note: "Unit price requested for the item." },
       { name: "LineAmount", type: "Decimal", note: "Qty × Price; net line amount before tax" },
       { name: "PurchReqConsolidationStatus", type: "Int32", note: "Enum indicating if line is in a consolidation opportunity for demand aggregation" },
     ],
@@ -3518,12 +3433,12 @@ export const tableDefs: Record<string, TableDef> = {
     fields: [
       { name: "AccountNum", type: "String", note: "Vendor account number; natural/business primary key" },
       { name: "VendGroup", type: "String", fkTarget: "VendGroup.VendGroup", note: "Vendor group; drives posting profiles and policies" },
-      { name: "CurrencyCode", type: "String", fkTarget: "Currency.CurrencyCode", note: "Default transaction currency for this vendor" },
+      { name: "Currency", type: "String", fkTarget: "Currency.CurrencyCode", note: "Default transaction currency for invoices and payments issued to this vendor." },
       { name: "PaymTermId", type: "String", fkTarget: "PaymTerm.PaymTermId", note: "Default payment terms (e.g. Net30)" },
-      { name: "DlvTermId", type: "String", fkTarget: "DlvTerm.DlvTermId", note: "Default delivery terms (Incoterms)" },
-      { name: "TaxGroup", type: "String", fkTarget: "TaxGroup.TaxGroup", note: "Sales-tax group applied to vendor transactions" },
-      { name: "VendHoldStatus", type: "Int32", note: "Enum: None=0, All=1, Invoice=2, Payment=3; blocks processing when set" },
-      { name: "OneTimeVendor", type: "Int32", note: "Flag for auto-created one-time vendor accounts" },
+      { name: "DlvTerm", type: "String", fkTarget: "DlvTerm.Code", note: "Default delivery terms for purchase orders from this vendor." },
+      { name: "TaxGroup", type: "String", fkTarget: "TaxGroupHeading.TaxGroup", note: "Sales-tax group applied to vendor transactions" },
+      { name: "Blocked", type: "Enum", note: "Hold status: No, Collection, All (invoice and payment blocking)." },
+      { name: "OneTimeVendor", type: "Enum", note: "Flag for auto-created one-time vendor accounts" },
     ],
   },
 
@@ -3539,110 +3454,106 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "PurchStatus", type: "Int32", note: "Enum: None=0, OpenOrder=1, Received=2, Invoiced=3, Cancelled=4" },
       { name: "DocumentStatus", type: "Int32", note: "Enum tracks document progress: None, PurchaseOrder, ProductReceipt, Invoice" },
       { name: "CurrencyCode", type: "String", fkTarget: "Currency.CurrencyCode", note: "Transaction currency for the order" },
-      { name: "PaymTermId", type: "String", fkTarget: "PaymTerm.PaymTermId", note: "Payment terms inherited from vendor; can be overridden" },
+      { name: "Payment", type: "String", fkTarget: "PaymTerm.PaymTermId", note: "Default payment terms for the purchase order." },
       { name: "DeliveryDate", type: "Date", note: "Requested delivery date on the header" },
     ],
   },
 
   PurchAgreementTable: {
     name: "PurchAgreementTable",
-    description: "Purchase agreement (blanket purchase order) header table. Each row records a long-running commitment with a vendor to purchase specified goods or value within a date range. Purchase orders released against the agreement inherit negotiated prices and the system tracks how much of the committed quantity/amount has been fulfilled. Not present in the CDM schema; see D365 Supply Chain documentation for field reference.",
+    description: "Purchase agreement (blanket purchase order) header. In D365FO stored in the shared AgreementHeader table with the PurchAgreement classification. Purchase orders released against the agreement inherit negotiated prices and track fulfilment against committed totals.",
     module: "Procurement and Sourcing",
     docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/procurement/purchase-agreements",
     fields: [
       {
-        name: "RecId",
-        type: "Int64",
-        note: "Surrogate primary key; referenced by PurchTable.Agreement",
-      },
-      {
-        name: "PurchAgreementId",
-        type: "String",
-        note: "Natural primary key — purchase agreement number, auto-generated by number sequence",
-      },
-      {
-        name: "OrderAccount",
-        type: "String",
-        fkTarget: "VendTable.AccountNum",
-        note: "Vendor account number party to this purchase agreement",
-      },
-      {
-        name: "CurrencyCode",
-        type: "String",
-        fkTarget: "Currency.CurrencyCode",
-        note: "Agreement currency; committed amounts are expressed in this currency",
-      },
-      {
-        name: "EffectiveDate",
-        type: "Date",
-        note: "Date from which the agreement is valid; purchase orders can only be released after this date",
-      },
-      {
-        name: "ExpirationDate",
-        type: "Date",
-        note: "Date after which the agreement expires; purchase orders cannot be released against an expired agreement",
-      },
-      {
-        name: "Status",
-        type: "Enum",
-        note: "Agreement status enum: 0=On hold, 1=Effective, 2=Closed — controls whether new orders can be released",
-      },
-      {
         name: "AgreementClassification",
         type: "Int64",
         fkTarget: "AgreementClassification.RecId",
-        note: "FK to the agreement classification defining commitment method (quantity vs. value)",
+        note: "Agreement classification (PurchAgreement) that identifies this as a purchase agreement.",
+      },
+      {
+        name: "Currency",
+        type: "String",
+        fkTarget: "Currency.CurrencyCode",
+        note: "Currency of the agreement.",
+      },
+      {
+        name: "DefaultDimension",
+        type: "Int64",
+        fkTarget: "DimensionAttributeValueSet.RecId",
+        note: "Default financial dimensions for the agreement.",
+      },
+      {
+        name: "DocumentTitle",
+        type: "String",
+        note: "Agreement title.",
+      },
+      {
+        name: "EarliestLineEffectiveDate",
+        type: "Date",
+        note: "Earliest effective date across all agreement lines.",
+      },
+      {
+        name: "LatestLineExpirationDate",
+        type: "Date",
+        note: "Latest expiration date across all agreement lines.",
+      },
+      {
+        name: "AgreementState",
+        type: "Enum",
+        note: "State of the agreement (validated, on hold, closed, etc.).",
       },
     ],
   },
 
   PurchAgreementLine: {
     name: "PurchAgreementLine",
-    description: "Purchase agreement commitment line. Each row represents one item-level commitment under a PurchAgreementTable header, specifying either a quantity or a value commitment for a vendor item. Released purchase order lines consume the committed quantity/amount and the system tracks fulfilment against the agreement. Not present in the CDM schema.",
+    description: "Purchase agreement commitment line. In D365FO stored in the shared AgreementLine table under a PurchAgreement-classified AgreementHeader; each line specifies a quantity or value commitment for an item. Released purchase order lines consume the committed quantity/amount.",
     module: "Procurement and Sourcing",
     docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/procurement/purchase-agreements",
     fields: [
       {
-        name: "RecId",
+        name: "Agreement",
         type: "Int64",
-        note: "Surrogate primary key",
+        fkTarget: "AgreementHeader.RecId",
+        note: "FK to the parent agreement header.",
       },
       {
-        name: "PurchAgreementId",
-        type: "String",
-        fkTarget: "PurchAgreementTable.PurchAgreementId",
-        note: "FK to the parent purchase agreement header",
-      },
-      {
-        name: "LineNum",
-        type: "Decimal",
-        note: "Line sequence number within the purchase agreement",
+        name: "AgreementLineType",
+        type: "Enum",
+        note: "Line type: item or category commitment.",
       },
       {
         name: "ItemId",
         type: "String",
         fkTarget: "InventTable.ItemId",
-        note: "Item for this commitment; empty for value-only (non-item-specific) commitment lines",
+        note: "Item the commitment applies to.",
       },
       {
-        name: "UnitId",
-        type: "String",
-        note: "Unit of measure for the committed quantity (e.g. 'pcs', 'kg'); relevant for quantity commitments",
+        name: "Category",
+        type: "Int64",
+        fkTarget: "EcoResCategory.RecId",
+        note: "Procurement/sales category the commitment applies to.",
       },
       {
-        name: "CommittedQuantity",
+        name: "LineNumber",
         type: "Decimal",
-        note: "Total quantity committed; 0 for value-only lines. Released order lines decrement the remaining quantity.",
+        note: "Line number within the agreement.",
       },
       {
-        name: "CommittedAmount",
-        type: "Decimal",
-        note: "Total value committed in the agreement currency; 0 for quantity-only lines",
+        name: "EffectiveDate",
+        type: "Date",
+        note: "Start of the commitment period.",
       },
       {
-        name: "MaxIsEnforced",
+        name: "ExpirationDate",
+        type: "Date",
+        note: "End of the commitment period.",
+      },
+      {
+        name: "IsMaxEnforced",
         type: "Enum",
-        note: "Controls whether the committed quantity/amount is a hard maximum (1=enforced) or a soft target (0=not enforced)",
+        note: "Whether the commitment quantity/amount is a maximum that cannot be exceeded.",
       },
     ],
   },
@@ -3655,9 +3566,9 @@ export const tableDefs: Record<string, TableDef> = {
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "PurchId", type: "String", fkTarget: "PurchTable.PurchId", note: "Links line to purchase order header" },
-      { name: "LineNum", type: "Decimal", note: "Line sequence number; decimal to allow insertion between lines" },
+      { name: "LineNumber", type: "Decimal", note: "Line number within the purchase order." },
       { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Product ordered; null if procurement category line" },
-      { name: "InventDimId", type: "String", fkTarget: "InventDim.InventDimId", note: "Inventory dimension combination (site, warehouse, batch, serial, etc.)" },
+      { name: "InventDimId", type: "String", fkTarget: "InventDim.inventDimId", note: "Inventory dimension combination (site, warehouse, batch, serial, etc.)" },
       { name: "PurchQty", type: "Decimal", note: "Ordered quantity in purchase unit of measure" },
       { name: "PurchPrice", type: "Decimal", note: "Agreed unit price in order currency" },
       { name: "LineAmount", type: "Decimal", note: "Net line amount (PurchQty × PurchPrice after discounts)" },
@@ -3667,18 +3578,18 @@ export const tableDefs: Record<string, TableDef> = {
 
   ChargesSetup: {
     name: "ChargesSetup",
-    description: "Misc charges (markup) code setup table — defines named charge codes used to add extra fees (freight, handling, insurance) to sales orders, purchase orders, and invoices. Each code specifies the debit/credit posting type and account. Known as MarkupTable in the D365FO AOT.",
+    description: "Auto charges setup (MarkupAutoTable in D365FO) - defines charge codes automatically applied to orders based on account, item, and delivery mode scope.",
     module: "Accounts Receivable / Procurement and Sourcing",
-    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/procurement/charges-procurement-overview",
+    docsUrl: "https://learn.microsoft.com/dynamics365/supply-chain/procurement/automatic-charges-allocation",
     fields: [
-      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
-      { name: "MarkupCode", type: "String", note: "Natural primary key — charge code identifier (e.g. 'FREIGHT', 'HANDLING')" },
-      { name: "Txt", type: "String", note: "Human-readable description of the charge" },
-      { name: "MarkupType", type: "Enum", note: "Debit posting type: 0=Ledger account, 1=Item, 2=Customer/vendor, 3=Internal" },
-      { name: "MarkupAccount", type: "String", note: "Ledger account for the debit side of the charge posting" },
-      { name: "MarkupTypeCr", type: "Enum", note: "Credit posting type (same enum as MarkupType)" },
-      { name: "MarkupAccountCr", type: "String", note: "Ledger account for the credit side of the charge posting" },
-      { name: "MarkupCategory", type: "String", note: "Optional category grouping charges for reporting" },
+      { name: "AccountCode", type: "Enum", note: "Scope of the auto charge: table (customer/vendor), group, or all." },
+      { name: "AccountRelation", type: "String", fkTarget: "CustTable.AccountNum", note: "Customer or vendor (or group) the auto charge applies to." },
+      { name: "ItemCode", type: "Enum", note: "Scope of the item: table (item), group, or all." },
+      { name: "ItemRelation", type: "String", fkTarget: "InventTable.ItemId", note: "Item (or item group) the auto charge applies to." },
+      { name: "DlvModeCode", type: "String", fkTarget: "DlvMode.Code", note: "Mode of delivery the auto charge applies to." },
+      { name: "ModuleCategory", type: "Enum", note: "Module the charge applies to (customer, vendor, etc.)." },
+      { name: "ModuleType", type: "Enum", note: "Document type (sales order, purchase order, etc.)." },
+      { name: "Description", type: "String", note: "Description of the auto charge." },
     ],
   },
 
@@ -3691,10 +3602,7 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "PurchId", type: "String", fkTarget: "PurchTable.PurchId", note: "Purchase order against which this receipt was posted" },
       { name: "PackingSlipId", type: "String", note: "Vendor's packing slip / delivery note number; required for matching" },
-      { name: "VendAccount", type: "String", fkTarget: "VendTable.AccountNum", note: "Vendor account on the originating PO" },
       { name: "DeliveryDate", type: "Date", note: "Actual physical delivery date recorded at receipt" },
-      { name: "TransDate", type: "Date", note: "Accounting posting date for inventory and accrual entries" },
-      { name: "Voucher", type: "String", note: "Voucher number in the general ledger for this receipt posting" },
       { name: "InvoiceAccount", type: "String", fkTarget: "VendTable.AccountNum", note: "Invoice vendor account (may differ from ordering vendor)" },
     ],
   },
@@ -3707,12 +3615,11 @@ export const tableDefs: Record<string, TableDef> = {
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "VendPackingSlipJour", type: "Int64", fkTarget: "VendPackingSlipJour.RecId", note: "FK to the receipt journal header; groups lines under one delivery" },
-      { name: "PurchId", type: "String", fkTarget: "PurchTable.PurchId", note: "Purchase order number, cross-links back to the PO header" },
-      { name: "LineNum", type: "Decimal", fkTarget: "PurchLine.LineNum", note: "Matches PurchLine.LineNum to identify the PO line received" },
+      { name: "LineNum", type: "Decimal", fkTarget: "PurchLine.LineNumber", note: "Matches PurchLine.LineNum to identify the PO line received" },
       { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Product received on this line" },
       { name: "Qty", type: "Decimal", note: "Physical quantity received in purchase unit of measure" },
-      { name: "InventTransId", type: "String", fkTarget: "InventTrans.InventTransId", note: "Links to the inventory transaction that updated on-hand stock" },
-      { name: "InventDimId", type: "String", fkTarget: "InventDim.InventDimId", note: "Dimension combination for the received stock" },
+      { name: "InventTransId", type: "String", fkTarget: "InventTransOrigin.InventTransId", note: "Links to the inventory transaction that updated on-hand stock" },
+      { name: "InventDimId", type: "String", fkTarget: "InventDim.inventDimId", note: "Dimension combination for the received stock" },
     ],
   },
 
@@ -3725,12 +3632,9 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "InvoiceId", type: "String", note: "Vendor's invoice number; used for duplicate-invoice detection" },
       { name: "PurchId", type: "String", fkTarget: "PurchTable.PurchId", note: "PO against which the invoice is matched; null for non-PO invoices" },
-      { name: "VendAccount", type: "String", fkTarget: "VendTable.AccountNum", note: "Vendor account being invoiced" },
       { name: "InvoiceDate", type: "Date", note: "Date on the vendor's paper invoice; drives due-date calculation" },
       { name: "InvoiceAmountMST", type: "Decimal", note: "Invoice total in accounting (MST) currency" },
       { name: "CurrencyCode", type: "String", fkTarget: "Currency.CurrencyCode", note: "Invoice transaction currency" },
-      { name: "Voucher", type: "String", note: "GL voucher number generated at posting; links to GeneralJournalEntry" },
-      { name: "VendTrans_RecId", type: "Int64", fkTarget: "VendTrans.RecId", note: "Direct FK to the VendTrans debit record created by this invoice posting" },
     ],
   },
 
@@ -3785,12 +3689,12 @@ export const tableDefs: Record<string, TableDef> = {
       },
       {
         name: "MatchStatus",
-        type: "Int32",
+        type: "Enum",
         note: "Enum: invoice-to-PO matching status (Passed, Failed, Not applicable, etc.)",
       },
       {
         name: "Approved",
-        type: "Int32",
+        type: "Enum",
         note: "1 if the invoice has been approved for posting; 0 if pending review",
       },
     ],
@@ -3869,13 +3773,12 @@ export const tableDefs: Record<string, TableDef> = {
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "InvoiceId", type: "String", fkTarget: "VendInvoiceJour.InvoiceId", note: "Invoice number; combined with VendAccount identifies the journal header" },
-      { name: "VendAccount", type: "String", fkTarget: "VendInvoiceJour.VendAccount", note: "Vendor account; part of composite FK to VendInvoiceJour" },
-      { name: "PurchId", type: "String", fkTarget: "PurchLine.PurchId", note: "Purchase order number; combined with LineNum pinpoints the PO line" },
-      { name: "LineNum", type: "Decimal", fkTarget: "PurchLine.LineNum", note: "PO line number; combined with PurchId links back to PurchLine" },
+      { name: "PurchID", type: "String", fkTarget: "PurchLine.PurchId", note: "Purchase order number the invoice line originates from (capital ID in AOT)." },
+      { name: "LineNum", type: "Decimal", fkTarget: "PurchLine.LineNumber", note: "PO line number; combined with PurchId links back to PurchLine" },
       { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Product invoiced on this line" },
       { name: "Qty", type: "Decimal", note: "Invoiced quantity" },
       { name: "LineAmountMST", type: "Decimal", note: "Net line amount in accounting currency" },
-      { name: "TaxGroup", type: "String", fkTarget: "TaxGroup.TaxGroup", note: "Sales-tax group applied on this invoice line" },
+      { name: "TaxGroup", type: "String", fkTarget: "TaxGroupHeading.TaxGroup", note: "Sales-tax group applied on this invoice line" },
     ],
   },
 
@@ -3905,12 +3808,10 @@ export const tableDefs: Record<string, TableDef> = {
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "TransRecId", type: "Int64", fkTarget: "VendTrans.RecId", note: "FK to the invoice (debit) VendTrans record being settled" },
-      { name: "OffsetRecId", type: "Int64", fkTarget: "VendTrans.RecId", note: "FK to the payment (credit) VendTrans record used to settle" },
+      { name: "OffsetRecid", type: "Int64", fkTarget: "VendTrans.RecId", note: "RecId of the offset (payment) VendTrans transaction." },
       { name: "SettleAmountMST", type: "Decimal", note: "Amount settled in accounting currency for this link" },
       { name: "SettleAmountCur", type: "Decimal", note: "Amount settled in transaction currency" },
-      { name: "CurrencyCode", type: "String", fkTarget: "Currency.CurrencyCode", note: "Transaction currency of the settlement" },
       { name: "TransDate", type: "Date", note: "Date on which settlement was applied" },
-      { name: "LastSettleDate", type: "Date", note: "Date the link was last modified (e.g. partial settlement updates)" },
     ],
   },
 
@@ -4077,17 +3978,6 @@ export const tableDefs: Record<string, TableDef> = {
         note: "FK to the account structure (DimensionHierarchy) defining which dimensions apply",
       },
       {
-        name: "MainAccount",
-        type: "Int64",
-        fkTarget: "MainAccount.RecId",
-        note: "FK to the MainAccount record for the primary account segment",
-      },
-      {
-        name: "MainAccountValue",
-        type: "String",
-        note: "Main account segment value (e.g. '1001'), denormalised for quick access",
-      },
-      {
         name: "LedgerDimensionType",
         type: "Int32",
         note: "Enum distinguishing the combination type (full ledger account, default dimension, etc.)",
@@ -4109,7 +3999,7 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "RecId", type: "Int64", note: "Surrogate primary key; referenced by DimensionAttributeValueCombination.AccountStructure" },
       { name: "Name", type: "String", note: "Display name of the account structure (e.g. 'Balance sheet', 'P&L')" },
       { name: "StructureType", type: "Enum", note: "0=AccountStructure (main account + dimensions), 1=AdvancedRule (supplemental dimensions)" },
-      { name: "IsActive", type: "Enum", note: "Whether this structure is active and enforced for new postings" },
+      { name: "IsDraft", type: "Enum", note: "True while the hierarchy is a draft; active hierarchies have IsDraft = No." },
       { name: "Description", type: "String", note: "Optional description of the hierarchy" },
     ],
   },
@@ -4126,7 +4016,6 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "Name", type: "string", note: "Display name of the account" },
       { name: "Type", type: "int32 (enum)", note: "Main account type: BalanceSheet, ProfitAndLoss, Total, Reporting, None" },
       { name: "LedgerChartOfAccounts", type: "int64 (FK → LedgerChartOfAccounts.RecId)", note: "The chart of accounts this account belongs to" },
-      { name: "Blocked", type: "int32 (enum)", note: "Whether the account is blocked for manual posting" },
       { name: "ExchangeAdjustmentRateType", type: "int64 (FK → ExchangeRateType.RecId, nullable)", note: "Exchange rate type used for foreign-currency revaluation" },
       { name: "FinancialReportingExchangeRateType", type: "int64 (FK → ExchangeRateType.RecId, nullable)", note: "Exchange rate type used for financial-reporting currency translation" },
     ],
@@ -4305,9 +4194,9 @@ export const tableDefs: Record<string, TableDef> = {
 
   LedgerCalendar: {
     name: "LedgerCalendar",
-    description: "Links a fiscal calendar to a ledger (legal entity), and optionally restricts posting to specific periods within that calendar. Controls which fiscal calendar is active for a given ledger and which periods are open or on hold for transaction posting.",
+    description: "Fiscal calendar definition shared across legal entities and used for ledgers, fixed assets, and budget cycles. The D365FO table is FiscalCalendar.",
     module: "General Ledger",
-    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/finance/general-ledger/fiscal-calendars-fiscal-years-periods",
+    docsUrl: "https://learn.microsoft.com/dynamics365/finance/budgeting/fiscal-calendars-fiscal-years-periods",
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "Ledger", type: "Int64", fkTarget: "Ledger.RecId", note: "FK to the ledger (legal entity) this calendar assignment applies to" },
@@ -4324,11 +4213,10 @@ export const tableDefs: Record<string, TableDef> = {
     fields: [
       { name: "RecId", type: "int64", note: "Primary key (surrogate)" },
       { name: "RuleId", type: "string", note: "Natural key — unique allocation rule identifier" },
-      { name: "Description", type: "string (nullable)", note: "Human-readable rule description" },
+      { name: "AllocationDescription", type: "String", note: "Description of the allocation rule." },
       { name: "AllocationMethod", type: "int32 (enum)", note: "0=Basis, 1=Fixed percentage, 2=Fixed weight, 3=Equally" },
       { name: "DataSource", type: "int32 (enum)", note: "Source of amounts to allocate: 0=Ledger balance, 1=Fixed value" },
-      { name: "JournalName", type: "string (FK → LedgerJournalName)", note: "Journal name used when posting the generated allocation entries" },
-      { name: "Active", type: "int32 (enum)", note: "Whether the rule is active (0=Inactive, 1=Active)" },
+      { name: "AllocationActive", type: "Enum", note: "Whether the allocation rule is active." },
     ],
   },
 
@@ -4339,10 +4227,10 @@ export const tableDefs: Record<string, TableDef> = {
     docsUrl: "https://learn.microsoft.com/common-data-model/schema/core/operationscommon/tables/finance/ledger/transaction/subledgervouchergeneraljournalentry",
     fields: [
       { name: "RecId", type: "int64", note: "Primary key (surrogate)" },
-      { name: "GeneralJournalEntry", type: "int64 (FK → GeneralJournalEntry.RecId)", note: "The GL general journal entry header this voucher maps to" },
+      { name: "GeneralJournalEntry", type: "Int64", note: "The GL general journal entry header this voucher maps to" },
       { name: "Voucher", type: "string", note: "Subledger voucher number (from AP/AR/Bank/etc.)" },
       { name: "VoucherDataAreaId", type: "string", note: "Legal entity (DataAreaId) of the originating subledger voucher" },
-      { name: "AccountingDate", type: "date (nullable)", note: "Accounting date of the subledger voucher" },
+      { name: "AccountingDate", type: "Date", note: "Accounting date of the subledger voucher" },
     ],
   },
 
@@ -4392,30 +4280,37 @@ export const tableDefs: Record<string, TableDef> = {
 
   LedgerConsolidate: {
     name: "LedgerConsolidate",
-    description: "Consolidation run record (CDM table: LedgerConsolidateHist). Each online or import consolidation execution creates a history record identifying the source subsidiary and target consolidated legal entity.",
+    description: "Consolidation template - the setup record that defines source legal entities, account mappings, and currency translation for a consolidation run (D365FO template-based consolidation; the AX2012 LedgerConsolidate table no longer exists).",
     module: "General Ledger / Consolidations",
     docsUrl: "https://learn.microsoft.com/common-data-model/schema/core/operationscommon/tables/finance/ledger/transactionheader/ledgerconsolidatehist",
     fields: [
-      { name: "RecId", type: "int64", note: "Primary key (surrogate)" },
-      { name: "CompanyIdOrigin", type: "string (nullable)", note: "DataAreaId of the subsidiary legal entity being consolidated (displayName: 'Company accounts')" },
-      { name: "Description", type: "string (nullable)", note: "Description of the consolidation run" },
-      { name: "DataAreaId", type: "string (isReadOnly)", note: "Legal entity of the target (parent/consolidated) entity" },
+      { name: "Name", type: "String", note: "Consolidation template name." },
+      { name: "Description", type: "String", note: "Description of the consolidation template." },
+      { name: "FromAccount", type: "String", note: "Source main account range start for account mapping." },
+      { name: "ToAccount", type: "String", note: "Source main account range end for account mapping." },
+      { name: "ProcessMode", type: "Enum", note: "Process mode for the consolidation run." },
+      { name: "ConsolidateAccountSource", type: "Enum", note: "Source of consolidation account mapping (ledger or group)." },
+      { name: "UseConsolidateAccount", type: "Enum", note: "Whether consolidation accounts are used for the run." },
+      { name: "TransferCurrent", type: "Enum", note: "Whether current-period balances are transferred." },
+      { name: "TransferBudget", type: "Enum", note: "Whether budget balances are transferred." },
     ],
   },
 
   LedgerConsolidateTrans: {
     name: "LedgerConsolidateTrans",
-    description: "Consolidation transaction line — one row per ledger account balance transferred from a subsidiary into the consolidated legal entity during an online or import consolidation run. References the LedgerConsolidate header and stores the translated amount in the consolidation currency.",
+    description: "Consolidation history - one record per executed consolidation run, identifying the source subsidiary, period, and processing details (D365FO LedgerConsolidateHist).",
     module: "General Ledger / Consolidations",
     docsUrl: "https://learn.microsoft.com/en-us/dynamics365/finance/budgeting/consolidation-elimination-overview",
     fields: [
-      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
-      { name: "AccountNum", type: "String", fkTarget: "MainAccount.MainAccountId", note: "Main account from the subsidiary being consolidated" },
-      { name: "ConsolidateAmount", type: "Decimal", note: "Amount translated into the consolidation currency" },
-      { name: "CurrencyCode", type: "String", fkTarget: "Currency.CurrencyCode", note: "Currency of the translated consolidation amount" },
-      { name: "TransDate", type: "Date", note: "Accounting date of the consolidation transaction" },
-      { name: "Voucher", type: "String", note: "Voucher number for the GL posting in the consolidated entity" },
-      { name: "DataAreaId", type: "String", note: "Legal entity of the consolidation target" },
+      { name: "RecId", type: "Int64", note: "Surrogate primary key." },
+      { name: "CompanyIdOrigin", type: "String", fkTarget: "DataArea.Id", note: "Source (subsidiary) legal entity of the consolidation run." },
+      { name: "FromDate", type: "Date", note: "Start of the consolidation period." },
+      { name: "ToDate", type: "Date", note: "End of the consolidation period." },
+      { name: "Description", type: "String", note: "Description of the consolidation run." },
+      { name: "Reviewed", type: "Enum", note: "Whether the consolidation result has been reviewed." },
+      { name: "Reversed", type: "Enum", note: "Whether the consolidation run has been reversed." },
+      { name: "ProcessDateTime", type: "UtcDateTime", note: "Timestamp of the consolidation run." },
+      { name: "BatchJobId", type: "Int64", fkTarget: "BatchJob.RecId", note: "Batch job that executed the consolidation run." },
     ],
   },
 
@@ -4455,9 +4350,9 @@ export const tableDefs: Record<string, TableDef> = {
 
   FinancialReportingTree: {
     name: "FinancialReportingTree",
-    description: "Financial reporting tree definition used in Management Reporter / Financial reporting. Defines the hierarchy of reporting units (nodes) that map to legal entities, departments, or cost centres, enabling row-by-column financial statements to roll up across organisational units.",
+    description: "Reporting tree definition used in Financial reporting. Defines the hierarchy of reporting units (nodes) that map to legal entities, departments, or cost centres.",
     module: "General Ledger / Financial Reporting",
-    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/finance/general-ledger/financial-reporting-tree-definitions",
+    docsUrl: "https://learn.microsoft.com/dynamics365/fin-ops-core/fin-ops/analytics/financial-reporting-tree-definitions",
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "TreeName", type: "String", note: "Natural key — name of the reporting tree definition" },
@@ -4481,7 +4376,6 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "ServiceType", type: "int32 enum", note: "Delivered / Work center; nullable" },
       { name: "InstanceRelationType", type: "int64", note: "Polymorphic type discriminator (EcoResDistinctProduct vs EcoResProductMaster); nullable" },
       { name: "PdsCWProduct", type: "int32", note: "Catch-weight product flag; nullable" },
-      { name: "EngChgProductOwnerId", type: "string", note: "Engineering change owner ID; nullable" },
     ],
   },
 
@@ -4584,29 +4478,19 @@ export const tableDefs: Record<string, TableDef> = {
       {
         name: "TaxItemGroupIdSales",
         type: "String",
-        fkTarget: "TaxItemGroupHeading.TaxItemGroupId",
+        fkTarget: "TaxItemGroupHeading.TaxItemGroup",
         note: "Default sales tax item group for items in this group",
       },
       {
         name: "TaxItemGroupIdPurch",
         type: "String",
-        fkTarget: "TaxItemGroupHeading.TaxItemGroupId",
+        fkTarget: "TaxItemGroupHeading.TaxItemGroup",
         note: "Default purchase tax item group for items in this group",
       },
       {
         name: "DataAreaId",
         type: "String",
         note: "Legal entity; InventItemGroup is per-company",
-      },
-      {
-        name: "RevRecRevenueRecognitionEnabled",
-        type: "Int32",
-        note: "Flag enabling revenue recognition for items in this group",
-      },
-      {
-        name: "RevRecRevenueType",
-        type: "Int32",
-        note: "Enum for revenue type used in rev-rec schedule assignment",
       },
     ],
   },
@@ -4638,10 +4522,10 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "ModelGroupId", type: "string", note: "User-defined group code (e.g. 'FIFO', 'STD')" },
       { name: "Name", type: "string", note: "Descriptive name" },
       { name: "InventModel", type: "int32 enum", note: "Costing method: FIFO=1, LIFO=2, WeightedAvg=3, MovingAvg=4, StdCost=5, LIFO date=6, WeightedAvg date=7" },
-      { name: "PostPhysical", type: "int32 bool", note: "Post physical receipts/issues to ledger immediately" },
-      { name: "PostFinancial", type: "int32 bool", note: "Post financial transactions to ledger" },
-      { name: "NegativeInventory", type: "int32 bool", note: "Allow negative physical inventory" },
-      { name: "FixedReceiptPrice", type: "int32 bool", note: "Use fixed receipt price (standard cost mode; enable with InventModel=StdCost)" },
+      { name: "PostOnhandPhysical", type: "Enum", note: "Post physical on-hand updates to the ledger." },
+      { name: "PostOnhandFinancial", type: "Enum", note: "Post financial (invoice) updates to the ledger." },
+      { name: "NegativePhysical", type: "Enum", note: "Allow negative physical inventory for items in this group." },
+      { name: "StandardCost", type: "Enum", note: "Use standard cost as the costing method for items in this group." },
     ],
   },
 
@@ -4703,8 +4587,6 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "TransferId", type: "string", note: "Transfer order number; natural key" },
       { name: "InventLocationIdFrom", type: "string", note: "From warehouse; FK → InventLocation" },
       { name: "InventLocationIdTo", type: "string", note: "To warehouse; FK → InventLocation" },
-      { name: "InventSiteIdFrom", type: "string", note: "From site; FK → InventSite" },
-      { name: "InventSiteIdTo", type: "string", note: "To site; FK → InventSite" },
       { name: "ShipDate", type: "date", note: "Planned shipment date" },
       { name: "ReceiveDate", type: "date", note: "Planned receipt date" },
       { name: "TransferStatus", type: "int32 enum", note: "Created=0, Shipped=1, Received=2, None=3" },
@@ -4722,8 +4604,7 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "LineNum", type: "decimal", note: "Line sequence number" },
       { name: "ItemId", type: "string", note: "FK → InventTable.ItemId" },
       { name: "InventDimId", type: "string", note: "FK → InventDim; source (from) dimension combination" },
-      { name: "InventDimIdTo", type: "string", note: "FK → InventDim; destination (to) dimension combination; nullable" },
-      { name: "Qty", type: "decimal", note: "Planned transfer quantity" },
+      { name: "QtyTransfer", type: "Decimal", note: "Quantity to transfer." },
       { name: "QtyShipped", type: "decimal", note: "Quantity physically shipped" },
       { name: "QtyReceived", type: "decimal", note: "Quantity received at destination" },
     ],
@@ -4758,7 +4639,7 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "ItemId", type: "string", note: "FK → InventTable.ItemId" },
       { name: "InventDimId", type: "string", note: "FK → InventDim" },
       { name: "Qty", type: "decimal", note: "Adjustment quantity (positive = in, negative = out)" },
-      { name: "CountedQty", type: "decimal", note: "Physical count quantity (Counting journals only)" },
+      { name: "Counted", type: "Decimal", note: "Counted quantity for counting journal lines (expected vs counted difference is posted)." },
       { name: "CostAmount", type: "decimal", note: "Cost value of the adjustment" },
       { name: "Voucher", type: "string", note: "GL voucher number (populated on post)" },
     ],
@@ -4766,33 +4647,32 @@ export const tableDefs: Record<string, TableDef> = {
 
   WHSCountingJournalTable: {
     name: "WHSCountingJournalTable",
-    description: "WMS cycle-counting journal header. Created automatically by cycle count plans/thresholds or manually via 'Cycle count work by location/item'. Tracks the work pool, warehouse, and journal lifecycle. Resolved differences are posted as InventJournalTable (Counting type) records. NOTE: This table is an internal D365FO WMS table not currently published in the CDM schema; the functional documentation below is the authoritative public reference.",
+    description: "Cycle count plan header - creates count work for items/locations according to thresholds and plan lines. Count results are registered and posted through counting journals (InventJournalTable/InventJournalTrans).",
     module: "Warehouse Management – worksheet header (per legal entity)",
     docsUrl: "https://learn.microsoft.com/dynamics365/supply-chain/warehousing/cycle-counting",
     fields: [
-      { name: "RecId", type: "int64", note: "Surrogate PK" },
-      { name: "JournalId", type: "string", note: "WMS counting journal number" },
-      { name: "WorkPoolId", type: "string", note: "FK → WHSWorkPool; optional work pool for segregation" },
-      { name: "Warehouse", type: "string", note: "FK → WHSWarehouse.Warehouse (WMS warehouse code)" },
-      { name: "JournalStatus", type: "int32 enum", note: "Open, Pending review, Closed" },
-      { name: "CreatedDateTime", type: "utcDateTime", note: "Counting job creation timestamp" },
+      { name: "CycleCountPlanId", type: "String", note: "Cycle count plan identifier; the plan generates count work." },
+      { name: "Description", type: "String", note: "Description of the cycle count plan." },
+      { name: "DaysBetween", type: "Int", note: "Number of days between counts for items covered by the plan." },
+      { name: "MaxCounts", type: "Int", note: "Maximum number of counts for an item per cycle." },
+      { name: "WorkPoolId", type: "String", fkTarget: "WHSWorkPool.WorkPoolId", note: "Work pool for the generated count work." },
+      { name: "WorkTemplateCode", type: "String", fkTarget: "WHSWorkTemplateTable.WorkTemplateCode", note: "Work template used to generate count work." },
     ],
   },
 
   WHSCountingJournalLine: {
     name: "WHSCountingJournalLine",
-    description: "WMS cycle-counting journal line. One row per item/location counted. Stores the worker-entered CountingQuantity and the system's ExpectedQuantity; if they differ beyond tolerance, a review step is required before the line can be posted. Links to the WHSWorkTable work record that triggered the count.",
+    description: "Cycle count work line - one row per item/location counted, with expected vs counted quantity. Links to the WHSWorkTable work record that triggered the count.",
     module: "Warehouse Management – worksheet line (per legal entity)",
     docsUrl: "https://learn.microsoft.com/dynamics365/supply-chain/warehousing/cycle-counting",
     fields: [
-      { name: "RecId", type: "int64", note: "Surrogate PK" },
-      { name: "JournalId", type: "string", note: "FK → WHSCountingJournalTable.JournalId" },
-      { name: "LineNum", type: "decimal", note: "Line sequence number" },
-      { name: "ItemId", type: "string", note: "FK → InventTable.ItemId" },
-      { name: "InventDimId", type: "string", note: "FK → InventDim; includes location and license plate" },
-      { name: "CountingQuantity", type: "decimal", note: "Quantity entered by the worker during the physical count" },
-      { name: "ExpectedQuantity", type: "decimal", note: "System on-hand quantity at time of count" },
-      { name: "WorkId", type: "string", note: "FK → WHSWorkTable.WorkId; the work order that generated this count line" },
+      { name: "WorkId", type: "String", fkTarget: "WHSWorkTable.WorkId", note: "Count work the line belongs to." },
+      { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Item being counted." },
+      { name: "InventDimId", type: "String", fkTarget: "InventDim.inventDimId", note: "Inventory dimensions of the counted location." },
+      { name: "QtyCounted", type: "Decimal", note: "Quantity counted by the worker." },
+      { name: "QtyExpected", type: "Decimal", note: "Expected quantity from the system." },
+      { name: "CycleCountCounted", type: "Enum", note: "Whether the count line has been counted." },
+      { name: "LineNum", type: "Decimal", note: "Line number within the count work." },
     ],
   },
 
@@ -4805,11 +4685,7 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "RecId", type: "int64", note: "Surrogate PK" },
       { name: "Voucher", type: "string", note: "GL voucher from the inventory close adjustment posting" },
       { name: "TransRecId", type: "int64", note: "FK → InventTrans.RecId (receipt side)" },
-      { name: "SettleRecId", type: "int64", note: "FK → InventTrans.RecId (issue side being settled)" },
-      { name: "Qty", type: "decimal", note: "Quantity settled in this record" },
-      { name: "CostAmount", type: "decimal", note: "Cost adjustment amount posted to GL" },
-      { name: "IsCancelled", type: "int32", note: "1 = this settlement was reversed/cancelled" },
-      { name: "Cancelled", type: "int64", note: "FK → InventSettlement.RecId of the cancellation record; nullable" },
+      { name: "Cancelled", type: "Enum", note: "Indicates the settlement record was cancelled." },
     ],
   },
 
@@ -5023,7 +4899,7 @@ export const tableDefs: Record<string, TableDef> = {
     name: "HcmEligibilityRule",
     description: "Benefit eligibility rule — defines the criteria a worker must meet to be eligible for a specific benefit plan (e.g. employment type = full-time, length of service ≥ 90 days, job title match). Rules are evaluated during open enrollment to filter available plans per worker.",
     module: "Human Resources – Benefits Management",
-    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/human-resources/hr-benefits-eligibility-rules",
+    docsUrl: "https://learn.microsoft.com/dynamics365/human-resources/hr-benefits-define-eligibility-rules",
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "RuleId", type: "String", note: "Natural key — eligibility rule identifier" },
@@ -5054,7 +4930,7 @@ export const tableDefs: Record<string, TableDef> = {
     name: "HcmLeaveAccrualSchedule",
     description: "Leave accrual schedule — defines the rate and frequency at which a worker earns (accrues) leave balance for a given leave type. Specifies accrual amount per period, accrual frequency (monthly, bi-weekly), carry-forward limits, and waiting period before accrual begins.",
     module: "Human Resources – Leave and Absence",
-    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/human-resources/hr-leave-and-absence-accrual",
+    docsUrl: "https://learn.microsoft.com/dynamics365/human-resources/hr-leave-and-absence-accrue",
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "LeaveAccrualScheduleId", type: "String", note: "Natural key — accrual schedule identifier" },
@@ -5168,9 +5044,9 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "ProjId", type: "string", note: "FK → ProjTable – associated project for cost/revenue posting; nullable" },
       { name: "ServiceDateTime", type: "datetime", note: "Preferred service date and time; nullable" },
       { name: "StageId", type: "string", note: "FK → SMAStageTable – workflow stage of the order (readonly)" },
-      { name: "Priority", type: "int32", note: "Enum – order priority level; nullable" },
-      { name: "WorkerResponsible", type: "string", note: "FK → HcmWorker – technician responsible for the order; nullable" },
-      { name: "SignOff", type: "int32", note: "NoYes – whether the order has been signed off by the technician" },
+      { name: "Priority", type: "Enum", note: "Enum – order priority level; nullable" },
+      { name: "WorkerResponsible", type: "Int64", note: "FK → HcmWorker – technician responsible for the order; nullable" },
+      { name: "SignOff", type: "Enum", note: "NoYes – whether the order has been signed off by the technician" },
     ],
   },
 
@@ -5229,17 +5105,13 @@ export const tableDefs: Record<string, TableDef> = {
 
   SMADispatchBoard: {
     name: "SMADispatchBoard",
-    description: "Service dispatch board record — represents a dispatcher's view of scheduled and unscheduled service orders. Tracks which technician (resource) is assigned to a service order, scheduled start/end times, and dispatch status. Used by the Dispatch Board workspace to manage field service scheduling.",
+    description: "Dispatch team - groups service technicians for dispatch assignment. The dispatch board itself is a form (SMADispatchBoard), not a table.",
     module: "Service Management",
     docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/service-management/dispatch-board",
     fields: [
-      { name: "RecId", type: "Int64", note: "Surrogate primary key" },
-      { name: "ServiceOrderId", type: "String", fkTarget: "SMAServiceOrderTable.ServiceOrderId", note: "FK to the service order being dispatched" },
-      { name: "Worker", type: "Int64", fkTarget: "HcmWorker.RecId", note: "FK to the technician/worker assigned to this dispatch" },
-      { name: "ScheduledStartDate", type: "Date", note: "Planned date and time the technician should start the service visit" },
-      { name: "ScheduledEndDate", type: "Date", note: "Planned date and time the service visit should end" },
-      { name: "DispatchStatus", type: "Enum", note: "Status: 0=Unscheduled, 1=Scheduled, 2=InProgress, 3=Completed, 4=Cancelled" },
-      { name: "ActivityCode", type: "String", note: "Activity code indicating the type of service activity (repair, installation, inspection)" },
+      { name: "DispatchTeamId", type: "String", fkTarget: "SMADispatchTeamTable.DispatchTeamId", note: "Dispatch team identifier." },
+      { name: "Description", type: "String", note: "Description of the dispatch team." },
+      { name: "WorkerOwner", type: "Int64", fkTarget: "HcmWorker.RecId", note: "Worker who owns the dispatch team." },
     ],
   },
 
@@ -5263,12 +5135,12 @@ export const tableDefs: Record<string, TableDef> = {
     fields: [
       { name: "RecId", type: "int64", note: "PK – surrogate key" },
       { name: "Name", type: "string", note: "Display name of the resource or work center; nullable" },
-      { name: "IsIndividualResource", type: "int32", note: "NoYes – 1 = individual person resource (technician), 0 = machine or group" },
+      { name: "IsIndividualResource", type: "Enum", note: "NoYes – 1 = individual person resource (technician), 0 = machine or group" },
       { name: "Capacity", type: "decimal", note: "Available capacity amount per period; nullable" },
       { name: "EffectivityPct", type: "decimal", note: "Efficiency percentage (e.g., 90 = 90% productive); nullable" },
       { name: "ProcessCategoryId", type: "string", note: "FK → RouteCostCategory – cost category for processing time; nullable" },
       { name: "SetUpCategoryId", type: "string", note: "FK → RouteCostCategory – cost category for setup time; nullable" },
-      { name: "Exclusive", type: "int32", note: "Exclusive scheduling flag – prevents double-booking; nullable" },
+      { name: "Exclusive", type: "Enum", note: "Exclusive scheduling flag – prevents double-booking; nullable" },
     ],
   },
 
@@ -5298,7 +5170,7 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "RecId", type: "int64", note: "PK – surrogate key" },
       { name: "SubscriptionId", type: "string", note: "Natural key – human-readable subscription identifier" },
       { name: "Name", type: "string", note: "Subscription description; nullable" },
-      { name: "Active", type: "int32", note: "NoYes – active flag; nullable" },
+      { name: "Active", type: "Enum", note: "NoYes – active flag; nullable" },
       { name: "BasePrice", type: "decimal", note: "Base price per period; nullable" },
       { name: "CurrencyCode", type: "string", note: "FK → Currency – billing currency" },
       { name: "GroupId", type: "string", note: "FK → SMASubscriptionGroup – defines invoicing period and accrual settings" },
@@ -5338,7 +5210,7 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "ItemId", type: "string", note: "" },
       { name: "PlanVersion", type: "int64", note: "" },
       { name: "ReqDate", type: "date", note: "" },
-      { name: "QtySched", type: "decimal", note: "" },
+      { name: "Qty", type: "Decimal", note: "Planned order quantity." },
       { name: "ActionType", type: "int32", note: "" },
       { name: "ActionDate", type: "date", note: "" },
       { name: "FuturesDays", type: "decimal", note: "" },
@@ -5396,41 +5268,38 @@ export const tableDefs: Record<string, TableDef> = {
     docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/master-planning/planning-optimization/planned-order-firming",
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
-      { name: "ReqPOId", type: "String", note: "Natural key — planned purchase order identifier" },
       { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Item to be purchased" },
       { name: "ReqDate", type: "Date", note: "Required receipt date (demand date) driving the planned order" },
       { name: "Qty", type: "Decimal", note: "Planned order quantity in purchase unit" },
-      { name: "VendAccount", type: "String", fkTarget: "VendTable.AccountNum", note: "Suggested vendor; nullable if not yet determined" },
-      { name: "PlanVersion", type: "Int64", fkTarget: "ReqPOPlanVersion.RecId", note: "FK to the plan version this planned order belongs to" },
-      { name: "Status", type: "Enum", note: "0=Unprocessed, 1=Approved, 2=Firmed — Firmed orders are converted to actual POs" },
+      { name: "VendId", type: "String", fkTarget: "VendTable.AccountNum", note: "Preferred vendor for the planned purchase order." },
+      { name: "PlanVersion", type: "Int64", fkTarget: "ReqPlanVersion.RecId", note: "FK to the plan version this planned order belongs to" },
+      { name: "ReqPOStatus", type: "Enum", note: "Planned order status (unfirmed, firmed, completed, etc.)." },
     ],
   },
 
   ReqPOPlanVersion: {
     name: "ReqPOPlanVersion",
-    description: "Master planning version snapshot — each plan run creates a new version record. Planned orders (ReqPO, ReqTrans) reference this version so older plan results are preserved until the next run overwrites them. Enables comparison between plan runs.",
+    description: "Master plan version - each plan run creates a version record; planned orders (ReqPO, ReqTrans) reference it via PlanVersion.",
     module: "Master Planning",
     docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/master-planning/master-planning-setup",
     fields: [
-      { name: "RecId", type: "Int64", note: "Surrogate primary key; referenced by ReqPO.PlanVersion and ReqTrans.PlanVersion" },
-      { name: "ReqPlanId", type: "String", fkTarget: "ReqPlanSched.ReqPlanIdSched", note: "FK to the master plan definition this version belongs to" },
-      { name: "PlanDate", type: "Date", note: "Date and time the plan run was executed" },
-      { name: "IsActive", type: "Enum", note: "Whether this is the currently active version displayed in the net requirements form" },
-      { name: "RunBy", type: "String", note: "User ID of the person or batch job that triggered this plan run" },
+      { name: "ReqPlanId", type: "String", fkTarget: "ReqPlan.ReqPlanId", note: "Master plan the version belongs to." },
+      { name: "Active", type: "Enum", note: "Whether this plan version is active." },
+      { name: "LastCostCalculationDateTime", type: "UtcDateTime", note: "Timestamp of the last cost calculation for the plan run." },
     ],
   },
 
   InventForecastTable: {
     name: "InventForecastTable",
-    description: "Demand forecast entry lines — stores per-item, per-period sales/demand forecast quantities used as input to master planning. In D365FO the underlying AOT table is ForecastSales; CDM exposes it as 'Demand forecast' (ForecastSales). A parallel table ForecastInvent holds the derived inventory forecast balance view.",
+    description: "Sales forecast lines (demand forecast) used as input to master planning. The D365FO AOT table is ForecastSales.",
     module: "SupplyChain / MasterPlanning / WorksheetLine",
     docsUrl: "https://learn.microsoft.com/common-data-model/schema/core/operationscommon/tables/supplychain/masterplanning/worksheetline/forecastsales",
     fields: [
       { name: "RecId", type: "int64", note: "" },
       { name: "ItemId", type: "string", note: "" },
-      { name: "DateBudget", type: "date", note: "" },
+      { name: "StartDate", type: "Date", note: "Start date of the forecast period." },
       { name: "ModelId", type: "string", note: "" },
-      { name: "Qty", type: "decimal", note: "" },
+      { name: "SalesQty", type: "Decimal", note: "Forecast sales quantity for the period." },
       { name: "CustAccountId", type: "string", note: "" },
       { name: "CustGroupId", type: "string", note: "" },
       { name: "InventDimId", type: "string", note: "" },
@@ -5443,17 +5312,16 @@ export const tableDefs: Record<string, TableDef> = {
 
   ReqItemTable: {
     name: "ReqItemTable",
-    description: "Item requirements table — stores demand lines originating from sources other than sales orders (e.g. project requirements, production forecasts, intercompany demand). Each row represents a net requirement for an item on a specific date, quantity, and dimension. Fed into master planning as an additional demand signal.",
+    description: "Item coverage settings per item (master planning): coverage group, coverage time fence, minimum and maximum on-hand quantities, and related planning parameters. Not a transaction table.",
     module: "Master Planning / Production Control",
     docsUrl: "https://learn.microsoft.com/en-us/dynamics365/supply-chain/master-planning/demand-forecasting-setup",
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
-      { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Item for which the requirement exists" },
-      { name: "ReqDate", type: "Date", note: "Date by which the item is required" },
-      { name: "Qty", type: "Decimal", note: "Required quantity in inventory unit" },
-      { name: "InventDimId", type: "String", fkTarget: "InventDim.InventDimId", note: "Inventory dimensions (site, warehouse) for the requirement" },
-      { name: "RefType", type: "Enum", note: "Source reference type: Sales, Production, Project, Transfer, etc." },
-      { name: "RefId", type: "String", note: "Natural key of the source document (e.g. SalesId, ProjId) creating this requirement" },
+      { name: "ItemId", type: "String", fkTarget: "InventTable.ItemId", note: "Item the coverage settings apply to." },
+      { name: "ReqGroupId", type: "String", fkTarget: "ReqGroup.ReqGroupId", note: "Coverage group for the item." },
+      { name: "CovTimeFence", type: "Int", note: "Coverage time fence in days (named TimeFenceCoverage in AOT)." },
+      { name: "MinInventOnhand", type: "Decimal", note: "Minimum on-hand quantity (reorder point)." },
+      { name: "MaxInventOnhand", type: "Decimal", note: "Maximum on-hand quantity." },
     ],
   },
 
@@ -5488,7 +5356,6 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "Approved", type: "int32", note: "" },
       { name: "FromDate", type: "date", note: "" },
       { name: "ToDate", type: "date", note: "" },
-      { name: "SiteId", type: "string", note: "" },
       { name: "InventDimId", type: "string", note: "" },
     ],
   },
@@ -5564,9 +5431,8 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "ItemId", type: "string", note: "" },
       { name: "BOMId", type: "string", note: "" },
       { name: "BOMConsump", type: "int32", note: "" },
-      { name: "QtyBOM", type: "decimal", note: "" },
-      { name: "QtyCalc", type: "decimal", note: "" },
-      { name: "QtyReal", type: "decimal", note: "" },
+      { name: "BOMQty", type: "Decimal", note: "BOM quantity per production unit." },
+      { name: "QtyBOMCalc", type: "Decimal", note: "Calculated quantity for this component in the BOM calculation." },
       { name: "InventDimId", type: "string", note: "" },
       { name: "LineNum", type: "decimal", note: "" },
     ],
@@ -5581,7 +5447,7 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "RecId", type: "int64", note: "" },
       { name: "ProdId", type: "string", note: "" },
       { name: "OprNum", type: "int32", note: "" },
-      { name: "WrkCtrId", type: "string", note: "" },
+      { name: "WrkCtrIdCost", type: "String", fkTarget: "WrkCtrTable.WrkCtrId", note: "Work center used for cost calculations of the operation." },
       { name: "SetUpCategoryId", type: "string", note: "" },
       { name: "CalcSetUp", type: "decimal", note: "" },
       { name: "CalcProc", type: "decimal", note: "" },
@@ -5680,7 +5546,7 @@ export const tableDefs: Record<string, TableDef> = {
       { name: "CalcType", type: "Enum", note: "Calculation type: 0=Standard, 1=Realized — distinguishes estimates from actuals" },
       { name: "CostAmount", type: "Decimal", note: "Calculated cost amount for this component line" },
       { name: "Qty", type: "Decimal", note: "Quantity the cost amount is based on" },
-      { name: "InventDimId", type: "String", fkTarget: "InventDim.InventDimId", note: "Inventory dimension (site/warehouse) the cost applies to" },
+      { name: "InventDimId", type: "String", fkTarget: "InventDim.inventDimId", note: "Inventory dimension (site/warehouse) the cost applies to" },
     ],
   },
 
@@ -5706,7 +5572,7 @@ export const tableDefs: Record<string, TableDef> = {
     name: "ProjQuotationTable",
     description: "Project quotation header — a sales quotation issued for project-based work. Captures the customer, estimated revenue, probability of winning, and links to the billing contract (ProjInvoiceId). When won, the quotation is confirmed into a project contract and project. Equivalent to a project-type SalesQuotationTable.",
     module: "Project Management and Accounting",
-    docsUrl: "https://learn.microsoft.com/en-us/dynamics365/project-operations/sales/create-project-quotations",
+    docsUrl: "https://learn.microsoft.com/dynamics365/finance/project-management/project-quotations",
     fields: [
       { name: "RecId", type: "Int64", note: "Surrogate primary key" },
       { name: "QuotationId", type: "String", note: "Natural key — unique quotation identifier" },
@@ -5869,17 +5735,13 @@ export const tableDefs: Record<string, TableDef> = {
 
   ProjInvoiceTable: {
     name: "ProjInvoiceTable",
-    description: "Posted project invoice journal header (CDM: ProjInvoiceJour) — the final customer-facing invoice document created after posting an invoice proposal. One ProjInvoiceJour record per invoice number; child lines are in per-type tables (ProjInvoiceEmpl, ProjInvoiceItem, ProjInvoiceCost, ProjInvoiceRevenue).",
+    description: "Project billing contract header (shown as Project contracts in the D365FO UI). Defines payment terms, currency, posting profile, and invoice format for one or more projects. ProjTable.ProjInvoiceProjId is the FK into this table.",
     module: "Project Management and Accounting",
     docsUrl: "https://learn.microsoft.com/en-us/common-data-model/schema/core/operationscommon/tables/professionalservices/projectmanagementandaccounting/transaction/projinvoicejour",
     fields: [
-      { name: "ProjInvoiceId", type: "string", note: "Natural key — posted invoice number" },
       { name: "ProjInvoiceProjId", type: "string", note: "FK → ProjInvoiceTable (billing contract) under which this invoice was created" },
-      { name: "InvoiceAmount", type: "decimal", note: "Total invoiced amount in transaction currency" },
       { name: "CurrencyId", type: "string", note: "Invoice currency" },
-      { name: "OrderAccount", type: "string", note: "Customer account (FK → CustTable) billed on this invoice" },
-      { name: "CostValue", type: "decimal", note: "Total cost component for profitability reporting" },
-      { name: "CashDiscCode", type: "string", note: "Cash discount code if applicable" },
+      { name: "CashDisc", type: "String", fkTarget: "CashDisc.CashDiscCode", note: "Cash discount terms for the billing contract." },
     ],
   },
 
@@ -6080,7 +5942,7 @@ export const tableDefs: Record<string, TableDef> = {
       },
       {
         name: "TransType",
-        type: "Int32",
+        type: "Enum",
         note: "Enum: 1 = Acquisition, 2 = Depreciation, 3 = Disposal, 4 = Revaluation, etc.",
       },
       {
