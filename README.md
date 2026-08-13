@@ -1,4 +1,4 @@
-# FnO Navigator — D365FO Process Navigator
+# FnO Navigator - D365FO Process Navigator
 
 A static SvelteKit app for navigating Dynamics 365 Finance & Operations (D365FO) business processes, tracing table relationships, and exploring technical customisations.
 
@@ -68,11 +68,15 @@ Source & Data Attribution
 ------
 This README and the project's case study content were adapted from the companion site at `../hidayattaufiqur.dev/src/content/projects/fno-navigator-case-study.md` and `data.ts`.
 
-The table relationship dataset used by the Table Path Finder feature is included as `static/data/fk-map.json`. The dataset was produced by converting table relationship data from HTML ERD files originally published by Microsoft and by using approaches from Alex Meyer's MicrosoftDynamicsTableAssociations project.
+The table relationship dataset used by the Table Path Finder feature is included as `static/data/fk-map.json`. The dataset derives from table relationship data converted from HTML ERD files originally published by Microsoft and processed by Alex Meyer's MicrosoftDynamicsTableAssociations project, and has since been **verified against the real D365FO standard-source metadata** (version 10.0.2645.32): every relation in the shipped file is confirmed either by the alexdmeyer dataset plus table/field existence, or by the D365FO AxTable relations in the synced standard source, or by Microsoft Learn documentation.
+
+Verification details: of the original 39,380 relations, 1,768 could not be confirmed (tables outside the synced model set that are undocumented on Microsoft Learn, plus relations contradicted by the real metadata). Those are excluded from this file and preserved with per-entry reasons in the verification project at `/home/smolpanda/Fun/Projects/fno-dev-copilot-spike/` (`data/fk-map.quarantine.json`, `VERIFICATION_REPORT.md`, `RESOLUTION_REPORT.md`). Relations that were previously unusable composite/ambiguous specs (`Pky?`/`Fky?` parser artifacts) were resolved against real metadata and are included with their real field pairs.
 
 Primary sources:
 
-- Microsoft: ax-2012-doc-tools — source table data (HTML ERD files in the Module-Erd directory). https://github.com/Microsoft/ax-2012-doc-tools
-- Alex Meyer: MicrosoftDynamicsTableAssociations — published table relationship data (tables.json, tablefieldassociations.json) derived from Microsoft's ERD information; conversion approach and tooling used as inspiration. https://github.com/ameyer505/MicrosoftDynamicsTableAssociations
+- Microsoft: ax-2012-doc-tools - source table data (HTML ERD files in the Module-Erd directory). https://github.com/Microsoft/ax-2012-doc-tools
+- Alex Meyer: MicrosoftDynamicsTableAssociations - published table relationship data (tables.json, tablefieldassociations.json) derived from Microsoft's ERD information; conversion approach and tooling used as inspiration. https://github.com/ameyer505/MicrosoftDynamicsTableAssociations
+- Microsoft Learn (https://learn.microsoft.com/api/mcp) - field/relation confirmation for tables outside the synced model set.
+- D365FO standard-source mirror (local, 10.0.2645.32) - AxTable relation metadata used for verification and resolution.
 
 Both upstream projects are licensed under the MIT License. The data in `static/data/fk-map.json` is included in this repository under the MIT License with attribution to the upstream sources above. When redistributing or adapting the dataset, keep this attribution and the original license notices.
