@@ -285,7 +285,7 @@
   .schema-fk-section {
     margin-top: 14px;
     padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid var(--clr-border-subtle);
   }
 
   .schema-fk-label {
@@ -310,7 +310,7 @@
     color: var(--clr-text-muted);
     text-decoration: none;
     padding: 6px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--clr-border-subtle);
     border-radius: 8px;
     transition: all 0.15s;
   }

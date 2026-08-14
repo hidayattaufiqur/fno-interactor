@@ -352,15 +352,15 @@
     padding: 5px 12px;
     border-radius: 6px;
     text-decoration: none;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--clr-border);
+    background: var(--clr-surface-raised);
     color: var(--clr-blue);
     transition: border-color 0.15s, background 0.15s;
   }
 
   .trace-link:hover {
     border-color: var(--clr-border-accent);
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--clr-surface-raised);
     text-decoration: none;
   }
 
@@ -375,8 +375,8 @@
     font-weight: 600;
     padding: 2px 7px;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--clr-surface-raised);
+    border: 1px solid var(--clr-border);
     color: var(--clr-text-faint);
     margin-left: 8px;
     vertical-align: middle;
@@ -427,8 +427,8 @@
     flex: 0 0 200px;
     padding: 6px 12px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--clr-border);
+    background: var(--clr-surface-raised);
     color: inherit;
     font-size: 13px;
     outline: none;
@@ -446,7 +446,7 @@
   .cat-pill {
     padding: 4px 10px;
     border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--clr-border);
     background: transparent;
     color: var(--clr-text-muted);
     font-size: 12px;

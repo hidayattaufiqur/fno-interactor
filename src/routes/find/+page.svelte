@@ -360,8 +360,8 @@
     align-items: flex-end;
     gap: 16px;
     flex-wrap: wrap;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border-subtle);
     border-radius: 12px;
     padding: 24px;
   }
@@ -393,7 +393,7 @@
 
   .swap-btn {
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--clr-border);
     color: var(--clr-text-muted);
     border-radius: 8px;
     width: 38px;
@@ -430,20 +430,20 @@
   }
 
   .hops-select {
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--clr-surface);
+    color: var(--clr-text);
+    border: 1px solid var(--clr-border);
     border-radius: 10px;
     padding: 8px 10px;
     font-size: 14px;
     cursor: pointer;
-    color-scheme: dark;
+    color-scheme: inherit;
     min-width: 64px;
   }
 
   .find-btn {
     padding: 9px 20px;
-    background: var(--accent);
+    background: var(--accent, #4fc3f7);
     color: #fff;
     border: none;
     border-radius: 7px;
@@ -465,9 +465,9 @@
   .autocomplete-wrap input {
     width: 100%;
     box-sizing: border-box;
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--clr-surface-raised);
     color: var(--clr-text);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--clr-border);
     border-radius: 10px;
     padding: 8px 10px;
     font-size: 14px;
@@ -490,7 +490,7 @@
     left: 0;
     right: 0;
     background: var(--surface-raised, #0d1826);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--clr-border);
     border-radius: 8px;
     list-style: none;
     margin: 0;
@@ -514,12 +514,12 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--text);
+    color: var(--clr-text);
     font-size: 13px;
   }
 
   .suggestions button:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: var(--clr-surface-raised);
   }
 
   .suggest-name { flex: 1; font-family: var(--font-mono, monospace); }
@@ -557,11 +557,11 @@
     text-align: center;
     padding: 40px 24px;
     color: var(--clr-text-muted);
-    border: 1px dashed rgba(255, 255, 255, 0.07);
+    border: 1px dashed var(--clr-border-subtle);
     border-radius: 10px;
   }
 
-  .finder-empty strong { color: var(--text); }
+  .finder-empty strong { color: var(--clr-text); }
 
   /* ── Results ── */
   .results-header {
@@ -581,8 +581,8 @@
   }
 
   .path-item {
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border-subtle);
     border-radius: 9px;
     padding: 10px 14px;
     display: flex;
@@ -652,7 +652,7 @@
   }
 
   .path-table-link:hover {
-    color: var(--text);
+    color: var(--clr-text);
     text-decoration: underline;
   }
 
@@ -664,7 +664,7 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-    border-left: 2px solid rgba(255, 255, 255, 0.05);
+    border-left: 2px solid var(--clr-border-subtle);
     margin-left: 2px;
     padding-left: 8px;
   }

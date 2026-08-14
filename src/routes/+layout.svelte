@@ -156,7 +156,7 @@
   .nav-link-count {
     margin-left: auto;
     font-size: 11px;
-    background: rgba(255, 255, 255, 0.07);
+    background: var(--clr-surface-raised);
     color: var(--clr-text-muted);
     padding: 1px 7px;
     border-radius: 10px;
