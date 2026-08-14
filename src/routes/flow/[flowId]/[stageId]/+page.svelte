@@ -112,14 +112,17 @@
           class="pipeline-node"
           class:active={stage.id === stageItem.id}
           aria-current={stage.id === stageItem.id ? 'page' : undefined}
+          title="{stageItem.title}"
         >
           <span class="step-num">Step {i + 1}</span>
           <span class="step-title">{stageItem.title}</span>
           <span class="pill" style="font-size:10px;padding:2px 6px;">{stageItem.roles.join(', ')}</span>
         </a>
-        {#if i < filteredStages.length - 1}
-          <div class="pipeline-arrow" aria-hidden="true">→</div>
-        {/if}
+        <div
+          class="pipeline-arrow"
+          class:hidden={i === filteredStages.length - 1}
+          aria-hidden="true"
+        >→</div>
       </div>
     {/each}
   {/if}
