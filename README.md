@@ -4,11 +4,11 @@ A static SvelteKit app for navigating Dynamics 365 Finance & Operations (D365FO)
 
 Overview
 --------
-FnO Navigator provides a fast reference that helps answer questions such as: what tables are involved in this process, how does a purchase order flow through the system, and where a customisation plugs in. The app is a static site that maps process flows, exposes a searchable table reference, and includes a Table Path Finder that computes relationships between tables.
+FnO Navigator provides a fast reference that helps answer questions such as which tables are involved in a process, how a purchase order flows through the system, and where a customisation plugs into the process. The app is a static site that maps process flows, exposes a searchable table reference, and includes a Table Path Finder that computes relationships between tables.
 
 Problem
 -------
-D365FO is a deep, interconnected ERP. When joining a project or debugging an unfamiliar module it's time-consuming to answer high-level questions using only the AOT or sprawling documentation. FnO Navigator surfaces those answers without opening Visual Studio or digging through internal wikis.
+D365FO is a deep, interconnected ERP. When joining a project or debugging an unfamiliar module, it's time-consuming to answer high-level questions using only the AOT or sprawling documentation. FnO Navigator surfaces those answers without opening Visual Studio or digging through internal wikis.
 
 Role
 ----
@@ -18,18 +18,18 @@ Solution & Features
 -------------------
 - Process Flows: grouped by D365FO module (AP, AR, Inventory, etc.) with stages and linked tables.
 - Table Reference: searchable list of key tables with descriptions, fields, and relationships.
-- Table Path Finder: finds how two tables are related through the data model.
+- Table Path Finder: finds paths between two tables through the data model.
 
 Stack
 -----
 - Framework: SvelteKit (static adapter)
 - Build tool: Vite
 - Data: Static TypeScript data files (data-as-code)
- - Table relations dataset: included as static/data/fk-map.json (sourced from and inspired by https://github.com/ameyer505/MicrosoftDynamicsTableAssociations)
+  - Table relations dataset: included as static/data/fk-map.json (sourced from and inspired by https://github.com/ameyer505/MicrosoftDynamicsTableAssociations)
 
 Key decisions
 -------------
-- Static site for zero-server cost and fast loads. Offline capability is not implemented yet (planned).
+- Static site for zero-server cost and fast loads. Offline capability is planned but not yet implemented.
 - Data-as-code (TypeScript) for type safety and ease of extension.
 
 Status
@@ -66,22 +66,22 @@ The app is built as a static site (SvelteKit adapter-static) and can be deployed
 
 Repository hygiene & security notes
 ---------------------------------
-- This repository's .gitignore excludes node_modules, build outputs, and local environment files; do not commit .env or other secret files.
+- This repository's .gitignore excludes node_modules, build outputs, and local environment files. Do not commit .env or other secret files.
 - Do not commit storage-state.json, Playwright auth/state files, or any files containing tokens.
-- If you need to purge sensitive data from history, use a specialized tool such as git-filter-repo or BFG (this is a destructive operation; contact the repo owner before proceeding).
+- If you need to purge sensitive data from history, use a specialized tool such as git-filter-repo or BFG (this is a destructive operation, so contact the repo owner before proceeding).
 
 Source & Data Attribution
-------
+------------------------
 This README and the project's case study content were adapted from the companion case study on the author's portfolio site (hidayattaufiqur.dev).
 
-The table relationship dataset used by the Table Path Finder feature is included as `static/data/fk-map.json`. The dataset derives from table relationship data converted from HTML ERD files originally published by Microsoft and processed by Alex Meyer's MicrosoftDynamicsTableAssociations project, and has since been **verified against the real D365FO standard-source metadata** (version 10.0.2645.32): every relation in the shipped file is confirmed either by the alexdmeyer dataset plus table/field existence, or by the D365FO AxTable relations in the synced standard source, or by Microsoft Learn documentation.
+The table relationship dataset used by the Table Path Finder feature is included as `static/data/fk-map.json`. The dataset derives from table relationship data converted from HTML ERD files originally published by Microsoft and processed by Alex Meyer's MicrosoftDynamicsTableAssociations project, and has since been **verified against the real D365FO standard-source metadata** (version 10.0.2645.32): every relation in the shipped file is confirmed by the alexdmeyer dataset plus table/field existence, by the D365FO AxTable relations in the synced standard source, or by Microsoft Learn documentation.
 
 Verification details: of the original 39,380 relations, 1,768 could not be confirmed (tables outside the synced model set that are undocumented on Microsoft Learn, plus relations contradicted by the real metadata). Those are excluded from this file and preserved, with per-entry reasons, in a private companion verification project. Relations that were previously unusable composite/ambiguous specs (`Pky?`/`Fky?` parser artifacts) were resolved against real metadata and are included with their real field pairs.
 
 Primary sources:
 
 - Microsoft: ax-2012-doc-tools - source table data (HTML ERD files in the Module-Erd directory). https://github.com/Microsoft/ax-2012-doc-tools
-- Alex Meyer: MicrosoftDynamicsTableAssociations - published table relationship data (tables.json, tablefieldassociations.json) derived from Microsoft's ERD information; conversion approach and tooling used as inspiration. https://github.com/ameyer505/MicrosoftDynamicsTableAssociations
+- Alex Meyer: MicrosoftDynamicsTableAssociations - published table relationship data (tables.json, tablefieldassociations.json) derived from Microsoft's ERD information. His conversion approach and tooling served as inspiration. https://github.com/ameyer505/MicrosoftDynamicsTableAssociations
 - Microsoft Learn (https://learn.microsoft.com/api/mcp) - field/relation confirmation for tables outside the synced model set.
 - D365FO standard-source mirror (local, 10.0.2645.32) - AxTable relation metadata used for verification and resolution.
 
