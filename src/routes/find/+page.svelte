@@ -158,7 +158,7 @@
     <h2>Table Path Finder</h2>
     <p class="lede">
       Discover the FK relationship chain between any two D365FO tables. Uses
-      <strong>37,443 verified associations</strong> across 5,633 tables — the full Microsoft Dynamics
+      <strong>37,443 verified associations</strong> across 5,607 tables — the full Microsoft Dynamics
       database graph.
     </p>
   </div>
