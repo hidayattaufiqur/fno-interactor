@@ -34,7 +34,13 @@ Key decisions
 
 Status
 ------
-Live and in active use. The site is deployed at https://fno.hidayattaufiqur.dev and the source code for this project is publicly available in this repository.
+Live and in active use. The site is deployed at https://fno.hidayattaufiqur.dev and the source code is available at https://github.com/hidayattaufiqur/fno-interactor.
+
+What's inside
+-------------
+- `src/routes/` - SvelteKit pages: the process-flow overview (`/`), the searchable table reference (`/tables`, `/tables/[name]`), the guided Table Path Finder (`/find`), and per-module flow pages (`/flow/[flowId]`).
+- `src/lib/` - shared components, pathfinding logic, and the flow/table metadata kept as TypeScript data files (data-as-code).
+- `static/data/fk-map.json` - the verified table-relationship dataset that powers the Table Path Finder (see NOTICE.md for provenance and licensing).
 
 Local development
 -----------------
@@ -66,11 +72,11 @@ Repository hygiene & security notes
 
 Source & Data Attribution
 ------
-This README and the project's case study content were adapted from the companion site at `../hidayattaufiqur.dev/src/content/projects/fno-navigator-case-study.md` and `data.ts`.
+This README and the project's case study content were adapted from the companion case study on the author's portfolio site (hidayattaufiqur.dev).
 
 The table relationship dataset used by the Table Path Finder feature is included as `static/data/fk-map.json`. The dataset derives from table relationship data converted from HTML ERD files originally published by Microsoft and processed by Alex Meyer's MicrosoftDynamicsTableAssociations project, and has since been **verified against the real D365FO standard-source metadata** (version 10.0.2645.32): every relation in the shipped file is confirmed either by the alexdmeyer dataset plus table/field existence, or by the D365FO AxTable relations in the synced standard source, or by Microsoft Learn documentation.
 
-Verification details: of the original 39,380 relations, 1,768 could not be confirmed (tables outside the synced model set that are undocumented on Microsoft Learn, plus relations contradicted by the real metadata). Those are excluded from this file and preserved with per-entry reasons in the verification project at `/home/smolpanda/Fun/Projects/fno-dev-copilot-spike/` (`data/fk-map.quarantine.json`, `VERIFICATION_REPORT.md`, `RESOLUTION_REPORT.md`). Relations that were previously unusable composite/ambiguous specs (`Pky?`/`Fky?` parser artifacts) were resolved against real metadata and are included with their real field pairs.
+Verification details: of the original 39,380 relations, 1,768 could not be confirmed (tables outside the synced model set that are undocumented on Microsoft Learn, plus relations contradicted by the real metadata). Those are excluded from this file and preserved, with per-entry reasons, in a private companion verification project. Relations that were previously unusable composite/ambiguous specs (`Pky?`/`Fky?` parser artifacts) were resolved against real metadata and are included with their real field pairs.
 
 Primary sources:
 

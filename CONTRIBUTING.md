@@ -4,7 +4,7 @@ Thanks for your interest in contributing to FnO Navigator.
 
 Guidelines
 - Report issues by opening an Issue with steps to reproduce and expected behaviour.
-- For code changes, fork the repository and open a Pull Request against `master`.
+- For code changes, fork the repository and open a Pull Request against `main`.
 - Keep changes small and focused. Include tests or a runnable repro where appropriate.
 
 Branch & Commit Style
