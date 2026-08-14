@@ -25,7 +25,7 @@
 
   // ── Deep links (?from=X&to=Y) ──────────────────────────────────────────────
 
-  /** Reads ?from=&to= on first load and kicks off a search if both are valid. */
+  // Reads ?from=&to= on first load and kicks off a search if both are valid.
   onMount(() => {
     const from = $page.url.searchParams.get('from')
     const to = $page.url.searchParams.get('to')
@@ -46,18 +46,16 @@
 
   // ── Autocomplete ───────────────────────────────────────────────────────────
 
-  /** @type {string[]} */
+  // @type {string[]}
   let sourceSuggestions = []
-  /** @type {string[]} */
+  // @type {string[]}
   let targetSuggestions = []
 
   // Rebuilt once FK map loads; empty until then
   $: allKnownTables = $fkLoadState === 'ready' ? getAllFkTableNames() : []
 
-  /**
-   * Returns up to 12 matches, ranking exact prefix matches above substring matches.
-   * @param {string} query @param {string} selected
-   */
+  // Returns up to 12 matches, ranking exact prefix matches above substring matches.
+  // @param {string} query @param {string} selected
   function getSuggestions(query, selected) {
     const q = query.trim().toLowerCase()
     if (q.length < 2 || query === selected) return []
@@ -76,21 +74,21 @@
   $: sourceSuggestions = getSuggestions(sourceInput, sourceTable)
   $: targetSuggestions = getSuggestions(targetInput, targetTable)
 
-  /** @param {string} name */
+  // @param {string} name
   function selectSource(name) {
     sourceTable = name
     sourceInput = name
     sourceSuggestions = []
   }
 
-  /** @param {string} name */
+  // @param {string} name
   function selectTarget(name) {
     targetTable = name
     targetInput = name
     targetSuggestions = []
   }
 
-  /** Swap source and target tables. */
+  // Swap source and target tables.
   function swapTables() {
     const s = sourceTable || sourceInput
     const t = targetTable || targetInput
@@ -102,7 +100,7 @@
     targetSuggestions = []
   }
 
-  /** @param {KeyboardEvent} e @param {'source' | 'target'} which */
+  // @param {KeyboardEvent} e @param {'source' | 'target'} which
   function handleInputKey(e, which) {
     const suggestions = which === 'source' ? sourceSuggestions : targetSuggestions
     if (e.key === 'Enter' && suggestions.length > 0) {

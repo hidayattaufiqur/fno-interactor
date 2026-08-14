@@ -49,8 +49,8 @@
 
   // Group filtered flows by module, preserving order of first appearance
   $: groupedFlows = (() => {
-    const seen = /** @type {string[]} */ ([])
-    const result = /** @type {{ module: string; flows: typeof flows }[]} */ ([])
+    const seen = ([])
+    const result = ([])
     for (const flow of filteredFlows) {
       if (!seen.includes(flow.module)) {
         seen.push(flow.module)

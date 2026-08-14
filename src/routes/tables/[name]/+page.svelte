@@ -6,7 +6,7 @@
   import { fkLoadState, loadFkMap, getSchemaEdgesForTable } from '$lib/stores/fkMap'
   import { COMMON_METHODS, METHOD_CATEGORIES } from '$lib/data/tableMethods'
 
-  /** @type {import('./$types').PageData} */
+  // @type {import('./$types').PageData}
   export let data
 
   // ── Known tables set (for filtering schema edges to relevant neighbors) ────

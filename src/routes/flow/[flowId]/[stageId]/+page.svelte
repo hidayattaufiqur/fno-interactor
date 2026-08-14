@@ -3,7 +3,7 @@
   import RelationGraph from '$lib/components/RelationGraph.svelte'
   import { fkLoadState, loadFkMap, getFkEdgesBetween } from '$lib/stores/fkMap'
 
-  /** @type {import('./$types').PageData} */
+  // @type {import('./$types').PageData}
   export let data
 
   let roleFilter = 'All'
@@ -47,7 +47,7 @@
   // Pick most-connected table as graph hub (prefer manual-relation tables)
   $: graphHub = (() => {
     if (!allStageEdges.length) return null
-    /** @type {Record<string, number>} */
+    // @type {Record<string, number>}
     const connectionCount = {}
     for (const relation of allStageEdges) {
       connectionCount[relation.from] = (connectionCount[relation.from] ?? 0) + 1

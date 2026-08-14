@@ -5,7 +5,7 @@
   // Build a lookup: tableName → [{flowId, flowTitle, stageId, stageTitle}]
   // Done inline (not via +page.js) to avoid Svelte 5 legacy-mode prop issues.
   const tableUsageIndex = (() => {
-    /** @type {Record<string, {flowId: string, flowTitle: string, stageId: string, stageTitle: string}[]>} */
+    // @type {Record<string, {flowId: string, flowTitle: string, stageId: string, stageTitle: string}[]>}
     const index = {}
     for (const flow of flows) {
       for (const stage of flow.stages) {
@@ -31,10 +31,8 @@
     ).sort(),
   ]
 
-  /**
-   * Returns a label explaining why a table matched the query (or null if matched by name).
-   * @param {string} tableName @param {string} queryLower
-   */
+// Returns a label explaining why a table matched the query (or null if matched by name).
+// @param {string} tableName @param {string} queryLower
   function matchReason(tableName, queryLower) {
     const tableDef = tableDefs[tableName]
     if (tableName.toLowerCase().includes(queryLower)) return null // name match — no label needed
@@ -44,11 +42,9 @@
     return null
   }
 
-  /**
-   * Returns true if the table matches the search query (name, description, field name, or field note).
-   * Single source of truth — used by both the results filter and matchReason.
-   * @param {string} tableName @param {string} queryLower
-   */
+// Returns true if the table matches the search query (name, description, field name, or field note).
+// Single source of truth — used by both the results filter and matchReason.
+// @param {string} tableName @param {string} queryLower
   function tableMatchesQuery(tableName, queryLower) {
     if (tableName.toLowerCase().includes(queryLower)) return true
     const tableDef = tableDefs[tableName]
