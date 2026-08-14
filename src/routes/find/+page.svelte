@@ -489,7 +489,7 @@
     top: calc(100% + 4px);
     left: 0;
     right: 0;
-    background: var(--surface-raised, #0d1826);
+    background: var(--clr-surface-raised);
     border: 1px solid var(--clr-border);
     border-radius: 8px;
     list-style: none;
