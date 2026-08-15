@@ -17,6 +17,7 @@ export const findState = writable(
    *   searchError: string
    *   truncated: boolean
    *   shortestHops: number | null
+   *   missing: string[]
    * }} */
   ({
     sourceInput: '',
@@ -30,5 +31,6 @@ export const findState = writable(
     searchError: '',
     truncated: false,
     shortestHops: null,
+    missing: [],
   })
 )

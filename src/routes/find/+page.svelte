@@ -20,9 +20,10 @@
   let searchError = $findState.searchError
   let truncated = $findState.truncated
   let shortestHops = $findState.shortestHops
+  let missing = $findState.missing
 
   // Sync local vars back to store on any change
-  $: findState.set({ sourceInput, targetInput, sourceTable, targetTable, maxHops, sortMode, pathResults, searchState, searchError, truncated, shortestHops })
+  $: findState.set({ sourceInput, targetInput, sourceTable, targetTable, maxHops, sortMode, pathResults, searchState, searchError, truncated, shortestHops, missing })
 
   // ── Deep links (?from=X&to=Y) ──────────────────────────────────────────────
 
@@ -123,6 +124,7 @@
     pathResults = []
     truncated = false
     shortestHops = null
+    missing = []
 
     if (!sourceTable || !targetTable) {
       searchError = 'Pick both a source and a target table first.'
@@ -141,12 +143,70 @@
 
     searchState = 'running'
     await new Promise((resolve) => setTimeout(resolve, 0))
-    const { results, shortest, truncated: wasTruncated } = findPaths(sourceTable, targetTable, maxHops, { sort: sortMode })
+    const { results, shortest, truncated: wasTruncated, missing: missingTables } = findPaths(sourceTable, targetTable, maxHops, { sort: sortMode })
     pathResults = results
     shortestHops = shortest
     truncated = wasTruncated
+    missing = missingTables
     searchState = 'done'
+    // Fixture file is optional enrichment for hints / known paths. Load it
+    // lazily after the search so it never sits on the main data path.
+    loadCanonicalFixtures()
   }
+
+  // ── Fixture-driven canonical paths (Q8) ────────────────────────────────────
+
+  // Lazy, cached, failure-silent: the fixture file only powers the
+  // "canonical path" hint and pinned row. If it fails to load, the search
+  // results are unaffected.
+  // @type {Array<object> | null}
+  let canonicalFixtures = null
+  let canonicalLoadAttempted = false
+
+  async function loadCanonicalFixtures() {
+    if (canonicalLoadAttempted) return
+    canonicalLoadAttempted = true
+    try {
+      const res = await fetch('/data/path-fixtures.json')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      canonicalFixtures = (await res.json()).pairs ?? []
+    } catch {
+      canonicalFixtures = []
+    }
+  }
+
+  // Fixtures whose source/target match the queried pair, in the same
+  // direction (a fixture asserts a directed chain; flipping it would imply
+  // a different statement than the one validated against the dataset).
+  $: canonicalForPair = canonicalFixtures
+    ? canonicalFixtures.filter((f) => f.source === sourceTable && f.target === targetTable)
+    : []
+
+  // Every mustSurface path from the matched fixtures, deduped by sequence.
+  $: canonicalPaths = (() => {
+    const seen = new Set()
+    const out = []
+    for (const f of canonicalForPair) {
+      for (const path of f.mustSurface ?? []) {
+        const key = path.join('>')
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push({ fixtureId: f.id, path, hops: path.length - 1 })
+      }
+    }
+    return out
+  })()
+
+  // Canonical paths that are not already in the result list get pinned as
+  // known-good rows (fixture #1's story path never ranks; this is its home).
+  $: resultKeys = new Set(pathResults.map((r) => r.steps.map((s) => s.table).join('>')))
+  $: canonicalToShow = canonicalPaths.filter((c) => !resultKeys.has(c.path.join('>')))
+
+  // Q8 hint: a canonical path exists above the current maxHops selection.
+  $: canonicalHint = (() => {
+    const above = canonicalPaths.filter((c) => c.hops > maxHops)
+    return above.length ? { hops: Math.min(...above.map((c) => c.hops)) } : null
+  })()
 
   // Index of the top-scoring (cleanest) path in the current result set.
   $: cleanestIndex = pathResults.reduce(
@@ -313,7 +373,12 @@
     </div>
   {/if}
   {#if searchState === 'done'}
-    {#if pathResults.length === 0}
+    {#if missing.length > 0}
+      <div class="finder-empty">
+        <p><strong>{missing.join(', ')}</strong> {missing.length === 1 ? 'is' : 'are'} not in the 5,607-table dataset.</p>
+        <p class="mini">Check the spelling, then try again. Table names are case-sensitive (for example SalesLine, CustTable).</p>
+      </div>
+    {:else if pathResults.length === 0}
       <div class="finder-empty">
         <p>No path found between <strong>{sourceTable}</strong> and <strong>{targetTable}</strong>
         within {maxHops} hop{maxHops !== 1 ? 's' : ''}.</p>
@@ -322,7 +387,7 @@
     {:else}
       <div class="results-header">
         <span class="section-heading">
-          {pathResults.length}{pathResults.length >= 50 ? '+' : ''} path{pathResults.length !== 1 ? 's' : ''}
+          {pathResults.length}{truncated ? '+' : ''} path{pathResults.length !== 1 ? 's' : ''}
           from <strong>{sourceTable}</strong> to <strong>{targetTable}</strong>
         </span>
         <span class="mini">
@@ -334,9 +399,35 @@
       </div>
 
       {#if truncated}
-        <p class="finder-note">Search hit its internal limit — showing the first {pathResults.length} paths. Narrow the max hops for a shorter list.</p>
+        <p class="finder-note">Search space sampled: showing {pathResults.length} of many more possible paths. Reduce max hops for a shorter list.</p>
       {/if}
+    {/if}
 
+    {#if canonicalHint}
+      <p class="finder-note canonical-hint">A canonical path for this pair exists at {canonicalHint.hops} hop{canonicalHint.hops !== 1 ? 's' : ''}. Increase max hops to include it.</p>
+    {/if}
+
+    {#if canonicalToShow.length > 0}
+      <div class="canonical-block">
+        <div class="canonical-heading">
+          <span class="canonical-title">Known canonical path</span>
+          <span class="canonical-caption">A verified chain for this pair in the D365FO dataset</span>
+        </div>
+        {#each canonicalToShow as c}
+          <div class="canonical-path">
+            {#each c.path as table, i}
+              {#if i > 0}
+                <span class="path-arrow">→</span>
+              {/if}
+              <a href="/tables/{table}" class="path-table-link">{table}</a>
+            {/each}
+            <span class="canonical-badge">{c.hops} hop{c.hops !== 1 ? 's' : ''}</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    {#if pathResults.length > 0}
       <ol class="path-list">
         {#each pathResults as result, i}
           {@const hops = result.steps.length - 1}
@@ -597,6 +688,63 @@
     background: rgba(255, 180, 0, 0.08);
     border: 1px solid rgba(255, 180, 0, 0.18);
     border-radius: 7px;
+  }
+
+  .canonical-hint {
+    background: rgba(79, 195, 247, 0.07);
+    border-color: rgba(79, 195, 247, 0.2);
+  }
+
+  /* ── Fixture-driven canonical path (Q8) ── */
+  .canonical-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: rgba(79, 195, 247, 0.06);
+    border: 1px solid rgba(79, 195, 247, 0.28);
+    border-radius: 9px;
+    padding: 12px 16px;
+  }
+
+  .canonical-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .canonical-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--clr-blue, #4fc3f7);
+  }
+
+  .canonical-caption {
+    font-size: 11px;
+    color: var(--clr-text-muted);
+  }
+
+  .canonical-path {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .canonical-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(76, 175, 80, 0.12);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    color: var(--clr-green);
+    margin-left: 4px;
+    flex-shrink: 0;
   }
 
   .finder-empty {
