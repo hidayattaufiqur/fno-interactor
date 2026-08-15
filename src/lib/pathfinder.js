@@ -160,14 +160,34 @@ function applyDiversity(results) {
  * @param {string} target
  * @param {number} maxHops
  * @param {{ maxResults?: number; maxIterations?: number; sort?: 'shortest' | 'unique' }} [opts]
- * @returns {{ results: { steps: { table: string; via: string; edge: object }[]; score: number; diversity: number; breakdown: { plumbing: number; generic: number } }[]; shortest: number | null; truncated: boolean }}
+ * @returns {{ results: { steps: { table: string; via: string; edge: object }[]; score: number; diversity: number; breakdown: { plumbing: number; generic: number } }[]; shortest: number | null; truncated: boolean; truncation: { levelCap: boolean; totalCap: boolean; iterations: boolean }; missing: string[] }}
  */
 export function findPaths(source, target, maxHops, { maxResults = 50, maxIterations = 200000, sort = 'shortest' } = {}) {
+  // Missing tables (Q13): a table that appears nowhere in the dataset is
+  // reported in `missing`, distinct from "no path within maxHops".
+  const forwardMap = getForwardMap()
+  const reverseMap = getReverseMap()
+  const allTables = new Set()
+  if (forwardMap) for (const t of Object.keys(forwardMap)) allTables.add(t)
+  if (reverseMap) for (const t of Object.keys(reverseMap)) allTables.add(t)
+  const missing = [...new Set([source, target])].filter((t) => !allTables.has(t))
+  if (missing.length > 0) {
+    return {
+      results: [],
+      shortest: null,
+      truncated: false,
+      truncation: { levelCap: false, totalCap: false, iterations: false },
+      missing,
+    }
+  }
+
   if (source === target) {
     return {
       results: [{ steps: [{ table: source, via: '' }], score: 0, diversity: 0, breakdown: { plumbing: 0, generic: 0 } }],
       shortest: 0,
       truncated: false,
+      truncation: { levelCap: false, totalCap: false, iterations: false },
+      missing: [],
     }
   }
 
@@ -175,16 +195,25 @@ export function findPaths(source, target, maxHops, { maxResults = 50, maxIterati
   const distToTarget = boundedBfs(target, maxHops)
   const shortest = distToTarget.get(source) ?? null
   if (shortest === null) {
-    return { results: [], shortest: null, truncated: false }
+    return {
+      results: [],
+      shortest: null,
+      truncated: false,
+      truncation: { levelCap: false, totalCap: false, iterations: false },
+      missing: [],
+    }
   }
 
   const degrees = getDegrees()
   const documented = getDocumented()
 
   const results = []
+  const seqKeys = [] // parallel to results: table-sequence key per index (eviction bookkeeping)
   const seen = new Map() // table-sequence key → index into results (dedupe)
   let iterations = 0
-  let truncated = false
+  let hitLevelCap = false
+  let hitTotalCap = false
+  let hitIterations = false
   const path = [{ table: source, via: '' }]
   const inPath = new Set([source])
 
@@ -196,19 +225,47 @@ export function findPaths(source, target, maxHops, { maxResults = 50, maxIterati
   const levelCap = maxResults
   const totalCap = Math.max(maxResults * 5, maxResults)
   const buckets = Array.from({ length: maxHops + 1 }, () => [])
+  // Per-level evaluation budget (Q5): a level is swept until this many
+  // completions have been evaluated, so eviction has candidates to choose
+  // from without letting one hub level starve the rest of the iteration
+  // budget. Per-source-branch cap: each top-level branch contributes at most
+  // branchCap completions, so no single subtree (SalesQuotationLine alone
+  // yields ~12k level-4 completions) can monopolize the sweep before later
+  // branches — the story branch sits ~30th in score order, so the sweep
+  // must reach it. Tunable via env for calibration (PF_BRANCH_CAP,
+  // PF_LEVEL_ATTEMPTS).
+  const branchCap = Number(process.env.PF_BRANCH_CAP) || maxResults / 2
+  const levelAttempts = Number(process.env.PF_LEVEL_ATTEMPTS) || Math.max(levelCap * 3, maxResults * 16)
+  const levelEvaluated = Array.from({ length: maxHops + 1 }, () => 0)
 
   /**
-   * Guided DFS for exactly `level` hops. Invariant: each step goes to a
-   * neighbour that can still reach the target within the remaining hop
-   * budget — so every edge is on some valid path and we never wander off
-   * into hub-sprawl. Neighbours are ordered by distance to the target first
-   * (closer branches complete sooner, keeping enumeration cheap), then by
-   * semantic edge score (high-quality branches before generic ones, so the
-   * capped pool is rich in meaningful paths), then by degree (specific
-   * tables before hubs).
+   * Sorted valid nexts of a table (memoized — the sort key is independent of
+   * the level; only the distance filter varies per hop budget). Q5 order:
+   * edge score desc (semantic priority), distance asc (closer branches
+   * complete sooner), degree asc (specific tables before hubs). Distance
+   * remains a hard pruning constraint via the filter.
+   * @type {Map<string, { n: object; es: number }[]>}
    */
-  function dfs(current, level) {
-    if (buckets[level].length >= levelCap || results.length >= totalCap) return
+  const nextsCache = new Map()
+
+  /**
+   * Guided DFS for exactly `level` hops, confined to one top-level branch.
+   * Invariant: each step goes to a neighbour that can still reach the target
+   * within the remaining hop budget — so every edge is on some valid path
+   * and we never wander off into hub-sprawl. Pool retention (Q5): a level
+   * bucket keeps its BEST paths, not the first-found ones — when the bucket
+   * is full, a newly completed path evicts the bucket's worst when it scores
+   * higher. The sweep is bounded per branch (branchBudget), per level
+   * (levelAttempts) and globally (totalCap, maxIterations), so a pathological
+   * query degrades to "best sampled pool" instead of hanging.
+   */
+  function dfs(current, level, branchBudget) {
+    if (results.length >= totalCap) {
+      hitTotalCap = true
+      return
+    }
+    if (levelEvaluated[level] >= levelAttempts) return
+    if (branchBudget.remaining <= 0) return
     if (current === target) {
       const edges = path.slice(1).map((step) => step.edge)
       const { score, breakdown } = scorePath(edges, (t) => degrees.get(t) ?? 0, documented)
@@ -217,6 +274,8 @@ export function findPaths(source, target, maxHops, { maxResults = 50, maxIterati
       // best-scoring variant (business-key bonus depends on the join fields).
       const key = path.map((step) => step.table).join('>')
       const lvl = path.length - 1
+      levelEvaluated[lvl] += 1
+      branchBudget.remaining -= 1
       if (seen.has(key)) {
         const idx = seen.get(key)
         if (score > results[idx].score) {
@@ -225,7 +284,27 @@ export function findPaths(source, target, maxHops, { maxResults = 50, maxIterati
       } else if (buckets[lvl].length < levelCap) {
         seen.set(key, results.length)
         results.push({ steps: path.map((step) => ({ ...step })), score, breakdown })
+        seqKeys.push(key)
         buckets[lvl].push(results.length - 1)
+      } else {
+        // Level bucket full: keep the best per hop level, not first-found.
+        hitLevelCap = true
+        let worstIdx = -1
+        let worstScore = Infinity
+        for (const idx of buckets[lvl]) {
+          const s = results[idx].score
+          if (s < worstScore) {
+            worstScore = s
+            worstIdx = idx
+          }
+        }
+        if (score > worstScore) {
+          const oldKey = seqKeys[worstIdx]
+          if (seen.get(oldKey) === worstIdx) seen.delete(oldKey)
+          results[worstIdx] = { steps: path.map((step) => ({ ...step })), score, breakdown }
+          seqKeys[worstIdx] = key
+          seen.set(key, worstIdx)
+        }
       }
       return
     }
@@ -234,42 +313,85 @@ export function findPaths(source, target, maxHops, { maxResults = 50, maxIterati
     const remainingAfterStep = level - hopsUsed - 1
     if (remainingAfterStep < 0) return
 
-    const nexts = neighbours(current)
-      .filter((n) => {
-        // Any neighbour that can still reach the target within the remaining
-        // hop budget is a valid next step (sideways steps allowed, matching
-        // the old BFS result semantics). Neighbours that cannot reach the
-        // target in time are pruned — that is where the old BFS wasted work.
-        const d = distToTarget.get(n.table)
-        return d !== undefined && d <= remainingAfterStep && !inPath.has(n.table)
-      })
-      .map((n) => ({ n, es: scoreEdge(n.edge, (t) => degrees.get(t) ?? 0, documented).score }))
-      .sort(
-        (a, b) =>
-          (distToTarget.get(a.n.table) - distToTarget.get(b.n.table)) ||
-          (b.es - a.es) ||
-          // Prefer specific (low-degree) intermediates over hubs on ties, so
-          // business-table branches are explored before generic/stats ones.
-          ((degrees.get(a.n.table) ?? 0) - (degrees.get(b.n.table) ?? 0))
-      )
+    let cached = nextsCache.get(current)
+    if (!cached) {
+      cached = neighbours(current)
+        .map((n) => ({ n, es: scoreEdge(n.edge, (t) => degrees.get(t) ?? 0, documented).score }))
+        .sort((a, b) => {
+          // Edge score desc (semantic priority, Q5), then distance asc
+          // (closer branches complete sooner), then degree asc (specific
+          // tables before hubs). Unreachable neighbours (no distance) sort
+          // last — a total order, matching the Python port (Infinity).
+          const da = distToTarget.get(a.n.table) ?? Infinity
+          const db = distToTarget.get(b.n.table) ?? Infinity
+          return (b.es - a.es) || (da - db) || ((degrees.get(a.n.table) ?? 0) - (degrees.get(b.n.table) ?? 0))
+        })
+      nextsCache.set(current, cached)
+    }
 
-    for (const { n } of nexts) {
-      if (buckets[level].length >= levelCap || results.length >= totalCap) break
+    for (const { n } of cached) {
+      // Any neighbour that can still reach the target within the remaining
+      // hop budget is a valid next step (sideways steps allowed, matching
+      // the old BFS result semantics). Neighbours that cannot reach the
+      // target in time are pruned — that is where the old BFS wasted work.
+      const d = distToTarget.get(n.table)
+      if (d === undefined || d > remainingAfterStep) continue
+      if (inPath.has(n.table)) continue
+      if (results.length >= totalCap) {
+        hitTotalCap = true
+        break
+      }
+      if (levelEvaluated[level] >= levelAttempts) break
+      if (branchBudget.remaining <= 0) break
       if (++iterations > maxIterations) {
-        truncated = true
+        hitIterations = true
         return
       }
       path.push({ table: n.table, via: n.via, edge: n.edge })
       inPath.add(n.table)
-      dfs(n.table, level)
+      dfs(n.table, level, branchBudget)
       inPath.delete(n.table)
       path.pop()
     }
   }
 
-  for (let level = shortest; level <= maxHops && !truncated; level++) {
-    dfs(source, level)
+  for (let level = shortest; level <= maxHops && !hitIterations && results.length < totalCap; level++) {
+    // Expand the source's branches one at a time, each with its own budget,
+    // so the sweep reaches later branches instead of drowning in the first.
+    let cached = nextsCache.get(source)
+    if (!cached) {
+      cached = neighbours(source)
+        .map((n) => ({ n, es: scoreEdge(n.edge, (t) => degrees.get(t) ?? 0, documented).score }))
+        .sort((a, b) => {
+          const da = distToTarget.get(a.n.table) ?? Infinity
+          const db = distToTarget.get(b.n.table) ?? Infinity
+          return (b.es - a.es) || (da - db) || ((degrees.get(a.n.table) ?? 0) - (degrees.get(b.n.table) ?? 0))
+        })
+      nextsCache.set(source, cached)
+    }
+    for (const { n } of cached) {
+      const d = distToTarget.get(n.table)
+      if (d === undefined || d > level - 1) continue
+      if (n.table === source) continue
+      if (results.length >= totalCap) {
+        hitTotalCap = true
+        break
+      }
+      if (levelEvaluated[level] >= levelAttempts) break
+      if (++iterations > maxIterations) {
+        hitIterations = true
+        break
+      }
+      const branchBudget = { remaining: branchCap }
+      path.push({ table: n.table, via: n.via, edge: n.edge })
+      inPath.add(n.table)
+      dfs(n.table, level, branchBudget)
+      inPath.delete(n.table)
+      path.pop()
+    }
   }
+
+  const truncated = hitLevelCap || hitTotalCap || hitIterations
 
   // Rank the candidate pool by the requested mode, slice to maxResults, then
   // compute the diversity term on the final set (bounded — ≤ maxResults) and
@@ -283,5 +405,11 @@ export function findPaths(source, target, maxHops, { maxResults = 50, maxIterati
   applyDiversity(results)
   results.sort(byMode)
 
-  return { results, shortest, truncated }
+  return {
+    results,
+    shortest,
+    truncated,
+    truncation: { levelCap: hitLevelCap, totalCap: hitTotalCap, iterations: hitIterations },
+    missing: [],
+  }
 }

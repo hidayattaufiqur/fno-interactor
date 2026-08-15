@@ -51,6 +51,8 @@ coverage/
 # Playwright / test artifacts
 playwright-report/
 storage-state.json
+tests/.scratch/
+tests/.evidence/
 
 # Local-only tooling / private assistant metadata
 .claude/

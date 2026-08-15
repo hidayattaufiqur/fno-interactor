@@ -1,0 +1,190 @@
+{
+  "version": 2,
+  "note": "Regression fixtures for the Table Path Finder 'most unique' ranking. Schema: {id, source, target, maxHops, mode ('unique'|'shortest', default 'unique'), mustSurface: [table-path arrays], bar ('top-10'), asserts: [named checks], note}. Every mustSurface path is existence-validated against static/data/fk-map.json by tests/validate-fixtures.mjs. Bar semantics: every path in mustSurface must appear within the top-`bar` results of the given mode. Named asserts (implemented in tests/assert-fixtures.mjs): top10-not-single-subtree, top10-sane, top10-no-payment-noise.",
+  "pairs": [
+    {
+      "id": "inventtable-custtable-story",
+      "source": "InventTable",
+      "target": "CustTable",
+      "maxHops": 4,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["InventTable", "InventTrans", "InventTransOrigin", "SalesLine", "CustTable"]],
+      "note": "Re-baselined canonical story path (Q1, F1): item -> inventory transaction -> transaction origin -> sales line -> customer. KNOWN FAILING as of 2026-08-16: pre-diversity 11 vs flat 12.0 pool cut under the approved scoring (Rule 1 + Rule 2 + named-ref business key); not in the top-50 pool at default sweep caps. See kanban t_b04d5a04 block for the decision request."
+    },
+    {
+      "id": "inventtrans-custtable-story2",
+      "source": "InventTrans",
+      "target": "CustTable",
+      "maxHops": 3,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["InventTrans", "InventTransOrigin", "SalesLine", "CustTable"]],
+      "note": "Story-path tail (same family as fixture #1; same root cause)."
+    },
+    {
+      "id": "purchline-salesline-inventsum",
+      "source": "PurchLine",
+      "target": "SalesLine",
+      "maxHops": 2,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["PurchLine", "InventSum", "SalesLine"]],
+      "note": "Purchase line must surface the InventSum stock-posting path at 2 hops."
+    },
+    {
+      "id": "salestable-purchtable-direct",
+      "source": "SalesTable",
+      "target": "PurchTable",
+      "maxHops": 1,
+      "mode": "shortest",
+      "bar": "top-10",
+      "mustSurface": [["SalesTable", "PurchTable"]],
+      "note": "Direct intercompany PurchId reference must be the shortest path."
+    },
+    {
+      "id": "salestable-purchtable-wms",
+      "source": "SalesTable",
+      "target": "PurchTable",
+      "maxHops": 2,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["SalesTable", "WMSJournalTable", "PurchTable"]],
+      "note": "A warehouse path must surface in unique mode. WMSOrderTrans sits at rank ~12; WMSJournalTable is the top-10 WMS representative today."
+    },
+    {
+      "id": "currency-companyinfo-diverse",
+      "source": "Currency",
+      "target": "CompanyInfo",
+      "maxHops": 4,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [],
+      "asserts": ["top10-not-single-subtree"],
+      "note": "Q5 regression gate: the top-10 must not be a single first-explored subtree (old behavior was all-ProjCostTrans)."
+    },
+    {
+      "id": "inventdim-companyinfo-sane",
+      "source": "InventDim",
+      "target": "CompanyInfo",
+      "maxHops": 5,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [],
+      "asserts": ["top10-sane"],
+      "note": "Top-10 must contain no Tmp*/Dimension* plumbing intermediates and the top score must be positive."
+    },
+    {
+      "id": "salestable-vendtable-no-payment-noise",
+      "source": "SalesTable",
+      "target": "VendTable",
+      "maxHops": 4,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [],
+      "asserts": ["top10-no-payment-noise"],
+      "note": "Top-10 must not be dominated by payment-posting noise (CustTrans/VendTrans/LedgerTrans/TaxTrans/settlements)."
+    },
+    {
+      "id": "salestable-custtable-direct",
+      "source": "SalesTable",
+      "target": "CustTable",
+      "maxHops": 1,
+      "mode": "shortest",
+      "bar": "top-10",
+      "mustSurface": [["SalesTable", "CustTable"]]
+    },
+    {
+      "id": "purchtable-vendtable-direct",
+      "source": "PurchTable",
+      "target": "VendTable",
+      "maxHops": 1,
+      "mode": "shortest",
+      "bar": "top-10",
+      "mustSurface": [["PurchTable", "VendTable"]]
+    },
+    {
+      "id": "inventtable-inventsum-direct",
+      "source": "InventTable",
+      "target": "InventSum",
+      "maxHops": 1,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["InventTable", "InventSum"]]
+    },
+    {
+      "id": "custinvoicejour-salestable-direct",
+      "source": "CustInvoiceJour",
+      "target": "SalesTable",
+      "maxHops": 1,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["CustInvoiceJour", "SalesTable"]]
+    },
+    {
+      "id": "salesline-inventtransorigin-direct",
+      "source": "SalesLine",
+      "target": "InventTransOrigin",
+      "maxHops": 1,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["SalesLine", "InventTransOrigin"]]
+    },
+    {
+      "id": "salesline-custtable-direct",
+      "source": "SalesLine",
+      "target": "CustTable",
+      "maxHops": 1,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["SalesLine", "CustTable"]]
+    },
+    {
+      "id": "projgrant-projgranttype-rule1",
+      "source": "ProjGrant",
+      "target": "ProjGrantType",
+      "maxHops": 1,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["ProjGrant", "ProjGrantType"]],
+      "note": "Rule 1 named-RecId reference (ProjGrant.ProjGrantType -> ProjGrantType.RecId): the path must surface and score as a business key, not plumbing."
+    },
+    {
+      "id": "workflowassignment-workflowstep-rule1",
+      "source": "WorkflowAssignmentTable",
+      "target": "WorkflowStepTable",
+      "maxHops": 1,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["WorkflowAssignmentTable", "WorkflowStepTable"]],
+      "note": "Rule 1 named-RecId reference (WorkflowAssignmentTable.WorkflowStepTable -> WorkflowStepTable.RecId)."
+    },
+    {
+      "id": "inventtable-vendtable-direct",
+      "source": "InventTable",
+      "target": "VendTable",
+      "maxHops": 1,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["InventTable", "VendTable"]]
+    },
+    {
+      "id": "salestable-salesline-direct",
+      "source": "SalesTable",
+      "target": "SalesLine",
+      "maxHops": 1,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["SalesTable", "SalesLine"]]
+    },
+    {
+      "id": "inventtable-prodtable-direct",
+      "source": "InventTable",
+      "target": "ProdTable",
+      "maxHops": 1,
+      "mode": "unique",
+      "bar": "top-10",
+      "mustSurface": [["InventTable", "ProdTable"]]
+    }
+  ]
+}
