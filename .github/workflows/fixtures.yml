@@ -1,0 +1,28 @@
+# Fixture regression net for the Table Path Finder (Q9/Q10).
+#
+# On every push to main and every PR, asserts the fixture suite against the
+# live pathfinder (top-K surfacing + existence contract) and gates the
+# unique-mode performance budget (p95 <= 300ms). Fails the run on any
+# violation. Minimal by design: no build, no lint, no deploy.
+name: fixtures
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Fixture assertions (top-10 surfacing + existence)
+        run: node tests/assert-fixtures.mjs
+      - name: Perf benchmark (unique-mode p95 <= 300ms)
+        run: node tests/bench.mjs
