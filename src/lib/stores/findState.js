@@ -11,7 +11,8 @@ export const findState = writable(
    *   sourceTable: string
    *   targetTable: string
    *   maxHops: number
-   *   pathResults: { steps: { table: string; via: string }[] }[]
+   *   sortMode: 'shortest' | 'unique'
+   *   pathResults: { steps: { table: string; via: string; edge: object }[]; score: number; breakdown: { plumbing: number; generic: number } }[]
    *   searchState: 'idle' | 'running' | 'done'
    *   searchError: string
    *   truncated: boolean
@@ -23,6 +24,7 @@ export const findState = writable(
     sourceTable: '',
     targetTable: '',
     maxHops: 3,
+    sortMode: 'shortest',
     pathResults: [],
     searchState: 'idle',
     searchError: '',

@@ -14,6 +14,7 @@
   let sourceTable = $findState.sourceTable
   let targetTable = $findState.targetTable
   let maxHops = $findState.maxHops
+  let sortMode = $findState.sortMode
   let pathResults = $findState.pathResults
   let searchState = $findState.searchState
   let searchError = $findState.searchError
@@ -21,7 +22,7 @@
   let shortestHops = $findState.shortestHops
 
   // Sync local vars back to store on any change
-  $: findState.set({ sourceInput, targetInput, sourceTable, targetTable, maxHops, pathResults, searchState, searchError, truncated, shortestHops })
+  $: findState.set({ sourceInput, targetInput, sourceTable, targetTable, maxHops, sortMode, pathResults, searchState, searchError, truncated, shortestHops })
 
   // ── Deep links (?from=X&to=Y) ──────────────────────────────────────────────
 
@@ -140,11 +141,25 @@
 
     searchState = 'running'
     await new Promise((resolve) => setTimeout(resolve, 0))
-    const { results, shortest, truncated: wasTruncated } = findPaths(sourceTable, targetTable, maxHops)
+    const { results, shortest, truncated: wasTruncated } = findPaths(sourceTable, targetTable, maxHops, { sort: sortMode })
     pathResults = results
     shortestHops = shortest
     truncated = wasTruncated
     searchState = 'done'
+  }
+
+  // Index of the top-scoring (cleanest) path in the current result set.
+  $: cleanestIndex = pathResults.reduce(
+    (best, r, i, arr) => (r.score > (arr[best]?.score ?? -Infinity) ? i : best),
+    0
+  )
+
+  // Switch sort order: re-run the search so the result pool is sliced for the
+  // active mode (shortest vs unique pick different top-50 sets).
+  function changeSort(mode) {
+    if (mode === sortMode) return
+    sortMode = mode
+    if (sourceTable && targetTable) handleFind()
   }
 </script>
 
@@ -250,6 +265,24 @@
         </select>
       </label>
 
+      <fieldset class="sort-fieldset">
+        <legend class="sort-label">Sort</legend>
+        <div class="sort-toggle" role="group" aria-label="Path sort order">
+          <button
+            type="button"
+            class="sort-btn"
+            class:sort-active={sortMode === 'shortest'}
+            on:click={() => changeSort('shortest')}
+          >Shortest</button>
+          <button
+            type="button"
+            class="sort-btn"
+            class:sort-active={sortMode === 'unique'}
+            on:click={() => changeSort('unique')}
+          >Most unique</button>
+        </div>
+      </fieldset>
+
       <button class="find-btn" on:click={handleFind} disabled={searchState === 'running'}>
         {#if searchState === 'running'}
           {$fkLoadState === 'loading' ? 'Loading data…' : 'Searching…'}
@@ -296,7 +329,7 @@
           {#if shortestHops !== null}
             Shortest: <strong>{shortestHops}</strong> hop{shortestHops !== 1 ? 's' : ''} ·
           {/if}
-          Fewest hops first · click a table name to view its reference
+          {sortMode === 'shortest' ? 'Fewest hops first' : 'Most unique first (semantic score)'} · click a table name to view its reference
         </span>
       </div>
 
@@ -325,7 +358,9 @@
                 {#if isShortest}
                   <span class="shortest-badge" title="Shortest path">shortest</span>
                 {/if}
-                <span class="hop-count">{hops} hop{hops !== 1 ? 's' : ''}</span>
+                {#if i === cleanestIndex}
+                  <span class="cleanest-badge" title="Top semantic score">cleanest path</span>
+                {/if}
               </div>
               <!-- Row 2: FK field labels, one per hop -->
               {#if result.steps.some((s) => s.via)}
@@ -337,6 +372,19 @@
                   {/each}
                 </div>
               {/if}
+              <!-- Row 3: breakdown — hops · semantic link counts · via tables -->
+              <div class="path-breakdown">
+                {hops} hop{hops !== 1 ? 's' : ''}
+                {#if result.breakdown.generic > 0}
+                  <span aria-hidden="true"> · </span>{result.breakdown.generic} generic link{result.breakdown.generic !== 1 ? 's' : ''}
+                {/if}
+                {#if result.breakdown.plumbing > 0}
+                  <span aria-hidden="true"> · </span>{result.breakdown.plumbing} plumbing link{result.breakdown.plumbing !== 1 ? 's' : ''}
+                {/if}
+                {#if hops > 0}
+                  <span aria-hidden="true"> · </span>via {result.steps.slice(1, -1).map((s) => s.table).join(', ')}
+                {/if}
+              </div>
             </div>
           </li>
         {/each}
@@ -619,13 +667,6 @@
     flex-shrink: 0;
   }
 
-  .hop-count {
-    font-size: 10px;
-    color: var(--clr-text-faint);
-    margin-left: 4px;
-    flex-shrink: 0;
-  }
-
   .shortest-badge {
     font-size: 9px;
     font-weight: 700;
@@ -636,6 +677,20 @@
     background: rgba(76, 175, 80, 0.12);
     border: 1px solid rgba(76, 175, 80, 0.3);
     color: var(--clr-green);
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+
+  .cleanest-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(79, 195, 247, 0.14);
+    border: 1px solid rgba(79, 195, 247, 0.35);
+    color: var(--clr-blue, #4fc3f7);
     margin-left: 4px;
     flex-shrink: 0;
   }
@@ -672,6 +727,64 @@
     color: var(--clr-text-faint);
     font-family: var(--font-mono, monospace);
     word-break: break-all;
+  }
+
+  /* Row 3: breakdown — hops · generic/plumbing links · via tables */
+  .path-breakdown {
+    font-size: 10px;
+    color: var(--clr-text-muted);
+    font-family: var(--font-mono, monospace);
+  }
+
+  /* ── Sort toggle ── */
+  .sort-fieldset {
+    border: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sort-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--clr-text-muted);
+    padding: 0;
+  }
+
+  .sort-toggle {
+    display: inline-flex;
+    border: 1px solid var(--clr-border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .sort-btn {
+    background: var(--clr-surface);
+    color: var(--clr-text-muted);
+    border: none;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .sort-btn + .sort-btn {
+    border-left: 1px solid var(--clr-border);
+  }
+
+  .sort-btn:hover:not(.sort-active) {
+    background: var(--clr-surface-raised);
+    color: var(--clr-text);
+  }
+
+  .sort-btn.sort-active {
+    background: rgba(79, 195, 247, 0.16);
+    color: var(--clr-blue, #4fc3f7);
   }
 
   @media (max-width: 900px) {
