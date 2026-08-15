@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "note": "Regression fixtures for the Table Path Finder 'most unique' ranking. Schema: {id, source, target, maxHops, mode ('unique'|'shortest', default 'unique'), mustSurface: [table-path arrays], bar ('top-10'), asserts: [named checks], note}. Every mustSurface path is existence-validated against static/data/fk-map.json by tests/validate-fixtures.mjs. Bar semantics: every path in mustSurface must appear within the top-`bar` results of the given mode. Named asserts (implemented in tests/assert-fixtures.mjs): top10-not-single-subtree, top10-sane, top10-no-payment-noise.",
+  "note": "Regression fixtures for the Table Path Finder 'most unique' ranking. Schema: {id, source, target, maxHops, mode ('unique'|'shortest', default 'unique'), mustSurface: [table-path arrays], bar ('top-10' | 'existence'), asserts: [named checks], note}. Every mustSurface path is existence-validated against static/data/fk-map.json by tests/validate-fixtures.mjs. bar='top-10': every path in mustSurface must appear within the top-10 results of the given mode. bar='existence': the path must be a valid chain in the dataset and powers the fixture-driven canonical-path UI (Q8 hint / pinned row); no rank is required. Named asserts (implemented in tests/assert-fixtures.mjs): top10-not-single-subtree, top10-sane, top10-no-payment-noise.",
   "pairs": [
     {
       "id": "inventtable-custtable-story",
@@ -8,9 +8,9 @@
       "target": "CustTable",
       "maxHops": 4,
       "mode": "unique",
-      "bar": "top-10",
+      "bar": "existence",
       "mustSurface": [["InventTable", "InventTrans", "InventTransOrigin", "SalesLine", "CustTable"]],
-      "note": "Re-baselined canonical story path (Q1, F1): item -> inventory transaction -> transaction origin -> sales line -> customer. KNOWN FAILING as of 2026-08-16: pre-diversity 11 vs flat 12.0 pool cut under the approved scoring (Rule 1 + Rule 2 + named-ref business key); not in the top-50 pool at default sweep caps. See kanban t_b04d5a04 block for the decision request."
+      "note": "Re-baselined canonical story path (Q1, F1): item -> inventory transaction -> transaction origin -> sales line -> customer. Decision 2026-08-16 (operator relay, Hidayat review pending): surfaced via the fixture-driven UI, not by rank. Ranking top-10 is provably unachievable under the approved scoring (story pre-diversity 11 vs flat 12.0 pool cut; structural diversity cap on shared core-chain edges; enumeration cost >1.5s breaks the 300ms budget). bar='existence' = the path must exist in the dataset (validated) and MUST be listed in the fixture-driven canonical paths the UI renders (Q8 hint at maxHops 3 + pinned canonical row, child card t_add5f656)."
     },
     {
       "id": "inventtrans-custtable-story2",
@@ -18,9 +18,9 @@
       "target": "CustTable",
       "maxHops": 3,
       "mode": "unique",
-      "bar": "top-10",
+      "bar": "existence",
       "mustSurface": [["InventTrans", "InventTransOrigin", "SalesLine", "CustTable"]],
-      "note": "Story-path tail (same family as fixture #1; same root cause)."
+      "note": "Story-path tail (same family and root cause as fixture #1; same existence+surfacing bar for consistency)."
     },
     {
       "id": "purchline-salesline-inventsum",

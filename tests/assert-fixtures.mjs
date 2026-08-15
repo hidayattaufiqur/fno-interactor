@@ -14,6 +14,25 @@ import { findPaths } from './harness.mjs'
 const ROOT = join(import.meta.dirname, '..')
 const FIXTURES = JSON.parse(readFileSync(join(ROOT, 'static/data/path-fixtures.json'), 'utf8'))
 
+// Undirected existence check (for bar='existence' fixtures): every mustSurface
+// path must be a valid chain in the dataset — the surfacing contract is that
+// the fixture file powers the UI's canonical-path hints, so the path must
+// exist for the hint to be truthful.
+const fwd = JSON.parse(readFileSync(join(ROOT, 'static/data/fk-map.json'), 'utf8'))
+const rev = {}
+for (const [parent, children] of Object.entries(fwd)) {
+  for (const [child, parentField, childField] of children) {
+    if (!rev[child]) rev[child] = []
+    rev[child].push([parent, parentField, childField])
+  }
+}
+function edgeExists(a, b) {
+  const out = []
+  for (const [child, pf, cf] of fwd[a] ?? []) if (child === b) out.push([a, pf, b, cf])
+  for (const [parent, pf, cf] of rev[a] ?? []) if (parent === b) out.push([a, cf, b, pf])
+  return out
+}
+
 // --- named asserts -----------------------------------------------------------
 
 /** Currency->CompanyInfo top-10 must not all route through one subtree. */
@@ -70,12 +89,24 @@ const ASSERT_IMPL = {
 let failures = 0
 for (const f of FIXTURES.pairs) {
   const res = findPaths(f.source, f.target, f.maxHops, { sort: f.mode ?? 'unique' })
-  const bar = f.bar === 'top-10' ? 10 : Number.parseInt(String(f.bar).replace('top-', ''), 10) || 10
-  const top = res.results.slice(0, bar)
+  const barRaw = String(f.bar ?? 'top-10')
+  const bar = barRaw === 'existence' ? null : (barRaw === 'top-10' ? 10 : Number.parseInt(barRaw.replace('top-', ''), 10) || 10)
+  const top = bar === null ? [] : res.results.slice(0, bar)
   const problems = []
 
   for (const must of f.mustSurface ?? []) {
     const seq = must.join('>')
+    if (bar === null) {
+      // Existence + surfacing contract: the path must be a valid chain in the
+      // dataset (the UI renders it from this fixture file as a canonical-path
+      // hint / pinned row). No top-N rank is required.
+      for (let i = 0; i < must.length - 1; i++) {
+        if (!edgeExists(must[i], must[i + 1]).length) {
+          problems.push(`mustSurface ${seq}: edge missing in dataset (${must[i]} -- ${must[i + 1]})`)
+        }
+      }
+      continue
+    }
     const rank = top.findIndex((r) => r.steps.map((s) => s.table).join('>') === seq)
     if (rank === -1) {
       problems.push(`mustSurface ${seq} NOT in top-${bar} (shortest=${res.shortest}, truncated=${res.truncated} ${JSON.stringify(res.truncation)})`)

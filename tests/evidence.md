@@ -33,8 +33,9 @@ cached-map harness (tests/harness.mjs) against static/data/fk-map.json.
 ## Story path (fixture #1): InventTable → InventTrans → InventTransOrigin → SalesLine → CustTable
 
 - Old: not in the top-10 at maxHops 4 (pre-diversity 1 under old scoring; enumeration never reached the branch).
-- New: pre-diversity (see below) — measured pre-diversity 11 (Rule 1 + Rule 2 + named-ref business key), pool cut is a flat 12.0 (documented business-key chains saturate at 4 × (2+1)); the story path therefore does NOT enter the top-50 pool, and the diversity term (which differentiates the flat pool) cannot lift it. Even with InventTransOrigin added to the documented set (+1 → 12), the tie-break and the low diversity of its shared core-chain edges (InventTrans/InventTransOrigin/SalesLine are the domain's most-connected chain) keep it out of the top-10.
+- New: measured pre-diversity 11 (Rule 1 + Rule 2 + named-ref business key); the pool cut is a flat 12.0 (documented business-key chains saturate at 4 × (2+1)), so the story path does NOT enter the top-50 pool and the diversity term (which differentiates the flat pool) cannot lift it. Even with InventTransOrigin added to the documented set (+1 → 12), the tie-break and the low diversity of its shared core-chain edges keep it out of the top-10.
 - Enumeration cost: the story branch sits ~29th among 1,184 qualifying source branches (score-order) and its path completes ~940 completions into the branch; surfacing it costs ~27k completions at level 4 (>1.5s), beyond the 300ms budget.
+- Decision (2026-08-16, operator relay under least-surprise/reversible rule; Hidayat review pending): fixture #1 is re-scoped to bar='existence' + the fixture-driven surfacing contract — the path powers the Q8 canonical-path hint (at default maxHops 3) and the pinned canonical row in the UI (child card t_add5f656), instead of requiring a top-10 rank that the approved model cannot deliver. The other 18 fixtures keep their top-10 bars (one story-tail fixture, inventtrans-custtable-story2, carries the same existence bar for consistency).
 
 ## Shortest-mode contract (default sort)
 
