@@ -234,8 +234,11 @@ export function findPaths(source, target, maxHops, { maxResults = 50, maxIterati
   // branches — the story branch sits ~30th in score order, so the sweep
   // must reach it. Tunable via env for calibration (PF_BRANCH_CAP,
   // PF_LEVEL_ATTEMPTS).
-  const branchCap = Number(process.env.PF_BRANCH_CAP) || maxResults / 2
-  const levelAttempts = Number(process.env.PF_LEVEL_ATTEMPTS) || Math.max(levelCap * 3, maxResults * 16)
+  // Browser-safe env read: the tunables must degrade silently when `process`
+  // is absent (client bundle), keeping the enumeration path identical.
+  const env = typeof process !== 'undefined' ? process.env : {}
+  const branchCap = Number(env.PF_BRANCH_CAP) || maxResults / 2
+  const levelAttempts = Number(env.PF_LEVEL_ATTEMPTS) || Math.max(levelCap * 3, maxResults * 16)
   const levelEvaluated = Array.from({ length: maxHops + 1 }, () => 0)
 
   /**
