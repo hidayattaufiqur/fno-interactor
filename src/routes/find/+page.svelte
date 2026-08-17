@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte'
+  import { onMount, tick } from 'svelte'
   import { page } from '$app/stores'
   import { tableDefs } from '$lib/data/flows'
   import { canonicalModule } from '$lib/utils'
@@ -7,6 +7,7 @@
   import { fkLoadState, fkLoadError, loadFkMap, getAllFkTableNames } from '$lib/stores/fkMap'
   import { specificityLoadState, specificityLoadError, loadSpecificity } from '$lib/stores/specificity'
   import { findPaths } from '$lib/pathfinder'
+  import { TOOLTIP_COPY, REASON_TOOLTIP_COPY, LEGEND_GROUPS } from '$lib/findLegendCopy'
 
   // ── Bind store fields to local vars for template convenience ───────────────
 
@@ -276,6 +277,132 @@
     sortMode = mode
     if (sourceTable && targetTable) handleFind()
   }
+
+  // ── Badge tooltips (dependency-free) ──────────────────────────────────────
+  //
+  // One shared tooltip div, driven by delegated listeners on window. Any
+  // element with a data-tip attribute is a target: hover shows it (mouse),
+  // focus shows it (keyboard / tap focus), click toggles it (touch fallback),
+  // and blur / Escape / outside click / scroll dismiss it. This is fast on
+  // mobile (no native title delay) and needs no libraries.
+  //
+  // @type {HTMLElement | null}
+  let tipOwner = null
+  let tipSource = '' // 'hover' | 'focus' | 'click'
+  let tipVisible = false
+  let tipText = ''
+  let tipX = 0
+  let tipY = 0
+  // @type {HTMLDivElement | null}
+  let tipNode = null
+
+  // @param {EventTarget | null} node
+  function closestTip(node) {
+    return node instanceof Element ? node.closest('[data-tip]') : null
+  }
+
+  // @param {HTMLElement} target
+  function showTip(target, source) {
+    const text = target.getAttribute('data-tip')
+    if (!text) return
+    tipOwner = target
+    tipSource = source
+    tipText = text
+    tipVisible = true
+    tick().then(() => positionTip(target))
+  }
+
+  function hideTip() {
+    tipVisible = false
+    tipOwner = null
+    tipSource = ''
+  }
+
+  // Park the tooltip above the target, clamped to the viewport; flip below
+  // when there is no room above.
+  // @param {HTMLElement} target
+  function positionTip(target) {
+    if (!tipNode) return
+    const t = target.getBoundingClientRect()
+    const p = tipNode.getBoundingClientRect()
+    let x = t.left + t.width / 2 - p.width / 2
+    x = Math.max(8, Math.min(x, window.innerWidth - p.width - 8))
+    let y = t.top - p.height - 8
+    if (y < 8) y = t.bottom + 8
+    tipX = x
+    tipY = y
+  }
+
+  // @param {MouseEvent} e
+  function onTipOver(e) {
+    if (e.pointerType === 'touch') return // taps are handled by click
+    const t = closestTip(e.target)
+    if (t && t !== tipOwner) showTip(t, 'hover')
+  }
+
+  // @param {MouseEvent} e
+  function onTipOut(e) {
+    if (e.pointerType === 'touch') return
+    const t = closestTip(e.target)
+    if (t && !t.contains(e.relatedTarget)) hideTip()
+  }
+
+  // @param {FocusEvent} e
+  function onTipFocusIn(e) {
+    const t = closestTip(e.target)
+    if (t) showTip(t, 'focus')
+  }
+
+  function onTipFocusOut() {
+    hideTip()
+  }
+
+  // @param {MouseEvent} e
+  function onTipClick(e) {
+    const t = closestTip(e.target)
+    if (!t) {
+      hideTip()
+      return
+    }
+    if (tipVisible && tipOwner === t && tipSource === 'click') hideTip()
+    else if (tipOwner !== t) showTip(t, 'click')
+  }
+
+  // @param {KeyboardEvent} e
+  function onTipKey(e) {
+    if (e.key === 'Escape') hideTip()
+  }
+
+  // @param {Event} e
+  function onTipScroll() {
+    if (tipSource !== 'focus') hideTip()
+  }
+
+  onMount(() => {
+    window.addEventListener('mouseover', onTipOver)
+    window.addEventListener('mouseout', onTipOut)
+    window.addEventListener('focusin', onTipFocusIn)
+    window.addEventListener('focusout', onTipFocusOut)
+    window.addEventListener('click', onTipClick)
+    window.addEventListener('keydown', onTipKey)
+    window.addEventListener('scroll', onTipScroll, true)
+    return () => {
+      window.removeEventListener('mouseover', onTipOver)
+      window.removeEventListener('mouseout', onTipOut)
+      window.removeEventListener('focusin', onTipFocusIn)
+      window.removeEventListener('focusout', onTipFocusOut)
+      window.removeEventListener('click', onTipClick)
+      window.removeEventListener('keydown', onTipKey)
+      window.removeEventListener('scroll', onTipScroll, true)
+    }
+  })
+
+  // Legend body paragraphs carry the dossier's backticks; render them as
+  // <code>. The text is our own copy deck, so no untrusted HTML reaches here.
+  // @param {string} text
+  function mdInline(text) {
+    return text.replace(/`([^`]+)`/g, '<code>$1</code>')
+  }
 </script>
 
 <svelte:head>
@@ -291,6 +418,47 @@
       <strong>37,443 verified associations</strong> across 5,607 tables — the full Microsoft Dynamics
       database graph.
     </p>
+
+    <!-- Legend: dossier copy (find-legend-copy.md), loaded with the page, no
+         network calls. Real text, keyboard-openable via native details. -->
+    <details class="legend">
+      <summary class="legend-summary">What do these mean?</summary>
+      <div class="legend-body">
+        {#each LEGEND_GROUPS as group}
+          <section class="legend-group">
+            <h3 class="legend-group-heading">{group.heading}</h3>
+            {#each group.sections as section}
+              <div class="legend-section">
+                <h4 class="legend-section-title">{section.title}</h4>
+                {#each section.body as para}
+                  <p>{@html mdInline(para)}</p>
+                {/each}
+                {#if section.table}
+                  <table class="legend-table">
+                    <thead>
+                      <tr>
+                        <th>Code</th>
+                        <th>Current chip text</th>
+                        <th>Plain-language meaning</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {#each section.table as row}
+                        <tr>
+                          <td><code>{row.code}</code></td>
+                          <td>{row.chip}</td>
+                          <td>{row.meaning}</td>
+                        </tr>
+                      {/each}
+                    </tbody>
+                  </table>
+                {/if}
+              </div>
+            {/each}
+          </section>
+        {/each}
+      </div>
+    </details>
   </div>
 </header>
 
@@ -430,7 +598,7 @@
   {#if searchState === 'done'}
     {#if missing.length > 0}
       <div class="finder-empty">
-        <p><strong>{missing.join(', ')}</strong> {missing.length === 1 ? 'is' : 'are'} not in the 5,607-table dataset.</p>
+        <p data-tip={TOOLTIP_COPY['missing-note']} tabindex="0" aria-describedby="find-tip"><strong>{missing.join(', ')}</strong> {missing.length === 1 ? 'is' : 'are'} not in the 5,607-table dataset.</p>
         <p class="mini">Check the spelling, then try again. Table names are case-sensitive (for example SalesLine, CustTable).</p>
       </div>
     {:else if pathResults.length === 0}
@@ -447,25 +615,56 @@
         </span>
         <span class="mini">
           {#if shortestHops !== null}
-            Shortest: <strong>{shortestHops}</strong> hop{shortestHops !== 1 ? 's' : ''} ·
+            <span
+              class="tip-target"
+              data-tip={TOOLTIP_COPY['shortest-hops']}
+              tabindex="0"
+              aria-describedby="find-tip"
+            >Shortest: <strong>{shortestHops}</strong> hop{shortestHops !== 1 ? 's' : ''}</span>
+            ·
           {/if}
-          {sortMode === 'shortest' ? 'Fewest hops first' : 'Most unique first (ranked by class & score)'} · click a table name to view its reference
+          {#if sortMode === 'shortest'}
+            Fewest hops first
+          {:else}
+            Most unique first (<span
+              class="tip-target"
+              data-tip={TOOLTIP_COPY['ranked-by-class-score']}
+              tabindex="0"
+              aria-describedby="find-tip"
+            >ranked by class &amp; score</span>)
+          {/if}
+          · click a table name to view its reference
         </span>
       </div>
 
       {#if truncated}
-        <p class="finder-note">Search space sampled: showing {pathResults.length} of many more possible paths. Reduce max hops for a shorter list.</p>
+        <p
+          class="finder-note"
+          data-tip={TOOLTIP_COPY['sampled-note']}
+          tabindex="0"
+          aria-describedby="find-tip"
+        >Search space sampled: showing {pathResults.length} of many more possible paths. Reduce max hops for a shorter list.</p>
       {/if}
     {/if}
 
     {#if canonicalHint}
-      <p class="finder-note canonical-hint">A canonical path for this pair exists at {canonicalHint.hops} hop{canonicalHint.hops !== 1 ? 's' : ''}. Increase max hops to include it.</p>
+      <p
+        class="finder-note canonical-hint"
+        data-tip={TOOLTIP_COPY['canonical-hint']}
+        tabindex="0"
+        aria-describedby="find-tip"
+      >A canonical path for this pair exists at {canonicalHint.hops} hop{canonicalHint.hops !== 1 ? 's' : ''}. Increase max hops to include it.</p>
     {/if}
 
     {#if canonicalToShow.length > 0}
       <div class="canonical-block">
         <div class="canonical-heading">
-          <span class="canonical-title">Known canonical path</span>
+          <span
+            class="canonical-title"
+            data-tip={TOOLTIP_COPY['known-canonical']}
+            tabindex="0"
+            aria-describedby="find-tip"
+          >Known canonical path</span>
           <span class="canonical-caption">Curated knowledge: a verified chain for this pair, pinned from the fixture set — not algorithm-ranked</span>
         </div>
         {#each canonicalToShow as c}
@@ -477,7 +676,12 @@
               <a href="/tables/{table}" class="path-table-link">{table}</a>
             {/each}
             <span class="canonical-badge">{c.hops} hop{c.hops !== 1 ? 's' : ''}</span>
-            <span class="curated-badge" title="Curated knowledge: editorial pick from the verified fixture set, not algorithm-ranked">curated</span>
+            <span
+              class="curated-badge"
+              data-tip={TOOLTIP_COPY.curated}
+              tabindex="0"
+              aria-describedby="find-tip"
+            >curated</span>
           </div>
         {/each}
       </div>
@@ -506,16 +710,36 @@
                   >{step.table}</a>
                 {/each}
                 {#if isShortest}
-                  <span class="shortest-badge" title="Shortest path">shortest</span>
+                  <span
+                    class="shortest-badge"
+                    data-tip={TOOLTIP_COPY.shortest}
+                    tabindex="0"
+                    aria-describedby="find-tip"
+                  >shortest</span>
                 {/if}
                 {#if i === cleanestIndex}
-                  <span class="cleanest-badge" title="Top-ranked path">cleanest path</span>
+                  <span
+                    class="cleanest-badge"
+                    data-tip={TOOLTIP_COPY['cleanest-path']}
+                    tabindex="0"
+                    aria-describedby="find-tip"
+                  >cleanest path</span>
                 {/if}
                 {#if result.qualityClass === 3}
-                  <span class="class3-badge" title="Business-flow path: document role pattern with continuous document IDs">Business flow</span>
+                  <span
+                    class="class3-badge"
+                    data-tip={TOOLTIP_COPY['business-flow']}
+                    tabindex="0"
+                    aria-describedby="find-tip"
+                  >Business flow</span>
                 {/if}
                 {#if isCurated}
-                  <span class="curated-badge" title="Curated knowledge: editorial pick from the verified fixture set, not algorithm-ranked">curated</span>
+                  <span
+                    class="curated-badge"
+                    data-tip={TOOLTIP_COPY.curated}
+                    tabindex="0"
+                    aria-describedby="find-tip"
+                  >curated</span>
                 {/if}
               </div>
               <!-- Row 2: FK field labels, one per hop -->
@@ -546,9 +770,21 @@
               </div>
               <!-- Class-3 rows: why this ranks here, spelled out instead of a number -->
               {#if result.qualityClass === 3}
-                <div class="reason-chips" role="list" aria-label="Why this path ranks here">
+                <div
+                  class="reason-chips"
+                  role="list"
+                  aria-label="Why this path ranks here"
+                  data-tip={TOOLTIP_COPY['reason-chips']}
+                  tabindex="-1"
+                >
                   {#each result.reasonCodes as code}
-                    <span class="reason-chip" role="listitem">{REASON_LABELS[code] ?? code}</span>
+                    <span
+                      class="reason-chip"
+                      role="listitem"
+                      data-tip={REASON_TOOLTIP_COPY[code] ?? REASON_LABELS[code] ?? code}
+                      tabindex="0"
+                      aria-describedby="find-tip"
+                    >{REASON_LABELS[code] ?? code}</span>
                   {/each}
                 </div>
                 {#if tieNote}
@@ -560,6 +796,16 @@
         {/each}
       </ol>
     {/if}
+  {/if}
+
+  {#if tipVisible}
+    <div
+      id="find-tip"
+      class="find-tip"
+      role="tooltip"
+      bind:this={tipNode}
+      style="left: {tipX}px; top: {tipY}px"
+    >{tipText}</div>
   {/if}
 </section>
 
@@ -1124,5 +1370,156 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+
+  /* ── Shared badge tooltip (dependency-free, dark-theme consistent) ── */
+  [data-tip] {
+    cursor: help;
+  }
+
+  [data-tip]:focus-visible,
+  .tip-target:focus-visible {
+    outline: 2px solid var(--clr-border-accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  .find-tip {
+    position: fixed;
+    z-index: 100;
+    max-width: 300px;
+    background: var(--clr-surface-raised);
+    border: 1px solid var(--clr-border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--clr-text);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+  }
+
+  /* ── Legend ("What do these mean?") ── */
+  .legend {
+    margin-top: 18px;
+    max-width: 720px;
+    font-size: 12px;
+  }
+
+  .legend-summary {
+    cursor: pointer;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--clr-blue);
+    user-select: none;
+    border-radius: 3px;
+  }
+
+  .legend-summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .legend-summary::before {
+    content: '';
+    width: 0;
+    height: 0;
+    border-left: 5px solid var(--clr-blue);
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    transition: transform 0.15s;
+  }
+
+  .legend[open] .legend-summary::before {
+    transform: rotate(90deg);
+  }
+
+  .legend-body {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--clr-surface);
+    border: 1px solid var(--clr-border-subtle);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--clr-text-muted);
+  }
+
+  .legend-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .legend-group-heading {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--clr-blue-strong);
+  }
+
+  .legend-section {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .legend-section-title {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--clr-text);
+  }
+
+  .legend-section p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.55;
+  }
+
+  .legend-section code {
+    background: var(--clr-surface-raised);
+    border: 1px solid var(--clr-border-subtle);
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: 11px;
+    color: var(--clr-blue-strong);
+  }
+
+  .legend-table {
+    border-collapse: collapse;
+    margin-top: 2px;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .legend-table th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--clr-text-faint);
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--clr-border);
+  }
+
+  .legend-table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--clr-border-subtle);
+    vertical-align: top;
+    color: var(--clr-text-muted);
+  }
+
+  .legend-table td:first-child {
+    white-space: nowrap;
   }
 </style>
