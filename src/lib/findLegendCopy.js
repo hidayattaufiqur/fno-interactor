@@ -111,7 +111,7 @@ export const LEGEND_GROUPS = [
       {
         title: 'X is not in the dataset',
         body: [
-          '`X is not in the dataset` means the named table was not found in the 5,607-table dataset. Check spelling and capitalization before searching again.',
+          '`X is not in the dataset` means the named table was not found in the 5,587-table dataset. Check spelling and capitalization before searching again.',
         ],
       },
       {

@@ -88,7 +88,7 @@ Each reason chip names one piece of evidence behind the path's class or score, w
 
 #### X is not in the dataset
 
-`X is not in the dataset` means the named table was not found in the 5,607-table dataset. Check spelling and capitalization before searching again.
+`X is not in the dataset` means the named table was not found in the 5,587-table dataset. Check spelling and capitalization before searching again.
 
 #### Canonical path exists at N hops
 
