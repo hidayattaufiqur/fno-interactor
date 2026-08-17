@@ -222,11 +222,52 @@
     return above.length ? { hops: Math.min(...above.map((c) => c.hops)) } : null
   })()
 
-  // Index of the top-scoring (cleanest) path in the current result set.
-  $: cleanestIndex = pathResults.reduce(
-    (best, r, i, arr) => (r.score > (arr[best]?.score ?? -Infinity) ? i : best),
-    0
-  )
+  // Index of the top-ranked path (Q4-modified display contract). The result
+  // list is already ordered by the v2 hierarchy (class → score@2dp → hops →
+  // diversity → key), so results[0] IS the rank-1 row; selecting max-score
+  // instead could point at a lower-class row than the rank order.
+  $: cleanestIndex = pathResults.length > 0 ? 0 : -1
+
+  // ── v2 display helpers (presentation-only; the data is untouched) ─────────
+
+  // Human-readable rendering of the deterministic reason codes emitted by
+  // pathScoring.js (Q5 vocabulary). Unknown codes fall back to themselves so
+  // a future code never renders blank.
+  const REASON_LABELS = {
+    'business-flow-pattern': 'follows a document flow',
+    'document-id-continuity': 'document IDs stay continuous across hops',
+    'named-reference-joins': 'named reference joins (no anonymous RecId)',
+    'business-key-joins': 'business-key path',
+    'generic-lookup-intermediate': 'passes through a generic lookup',
+    'curated-tables': 'passes curated tables',
+    'rare-relations': 'uses rare relation fields',
+    'common-relations': 'uses common relation fields',
+    'weak-semantic-signal': 'weak semantic signal',
+    'plumbing-detour': 'contains a plumbing detour',
+    'same-table': 'same table on both ends',
+  }
+
+  // Class-3 rows get this badge instead of a raw score.
+  const CLASS_3_LABEL = 'Business flow'
+
+  // Table-sequence keys of every fixture canonical path. A result row that
+  // matches one of these IS the curated path for the pair, so it earns the
+  // editorial badge even while it ranks in the algorithm list.
+  $: canonicalKeySet = new Set(canonicalPaths.map((c) => c.path.join('>')))
+
+  // Class-3 rows show no number, so an identical visible profile must be
+  // called out: when consecutive class-3 rows tie on score, hops and reason
+  // codes, their order is held by the diversity tiebreak alone. Saying so
+  // keeps the within-class ordering explainable without a score.
+  function class3TieNote(results, i) {
+    if (i === 0) return ''
+    const prev = results[i - 1]
+    const cur = results[i]
+    if (prev.qualityClass !== 3 || cur.qualityClass !== 3) return ''
+    if (prev.score !== cur.score || prev.hops !== cur.hops) return ''
+    if (prev.reasonCodes.join('|') !== cur.reasonCodes.join('|')) return ''
+    return 'tied criteria with the row above · order held by diversity tiebreak'
+  }
 
   // Switch sort order: re-run the search so the result pool is sliced for the
   // active mode (shortest vs unique pick different top-50 sets).
@@ -408,7 +449,7 @@
           {#if shortestHops !== null}
             Shortest: <strong>{shortestHops}</strong> hop{shortestHops !== 1 ? 's' : ''} ·
           {/if}
-          {sortMode === 'shortest' ? 'Fewest hops first' : 'Most unique first (semantic score)'} · click a table name to view its reference
+          {sortMode === 'shortest' ? 'Fewest hops first' : 'Most unique first (ranked by class & score)'} · click a table name to view its reference
         </span>
       </div>
 
@@ -425,7 +466,7 @@
       <div class="canonical-block">
         <div class="canonical-heading">
           <span class="canonical-title">Known canonical path</span>
-          <span class="canonical-caption">A verified chain for this pair in the D365FO dataset</span>
+          <span class="canonical-caption">Curated knowledge: a verified chain for this pair, pinned from the fixture set — not algorithm-ranked</span>
         </div>
         {#each canonicalToShow as c}
           <div class="canonical-path">
@@ -436,6 +477,7 @@
               <a href="/tables/{table}" class="path-table-link">{table}</a>
             {/each}
             <span class="canonical-badge">{c.hops} hop{c.hops !== 1 ? 's' : ''}</span>
+            <span class="curated-badge" title="Curated knowledge: editorial pick from the verified fixture set, not algorithm-ranked">curated</span>
           </div>
         {/each}
       </div>
@@ -446,6 +488,9 @@
         {#each pathResults as result, i}
           {@const hops = result.steps.length - 1}
           {@const isShortest = shortestHops !== null && hops === shortestHops}
+          {@const pathKey = result.steps.map((s) => s.table).join('>')}
+          {@const isCurated = canonicalKeySet.has(pathKey)}
+          {@const tieNote = class3TieNote(pathResults, i)}
           <li class="path-item">
             <span class="path-index">#{i + 1}</span>
             <div class="path-body">
@@ -464,7 +509,13 @@
                   <span class="shortest-badge" title="Shortest path">shortest</span>
                 {/if}
                 {#if i === cleanestIndex}
-                  <span class="cleanest-badge" title="Top semantic score">cleanest path</span>
+                  <span class="cleanest-badge" title="Top-ranked path">cleanest path</span>
+                {/if}
+                {#if result.qualityClass === 3}
+                  <span class="class3-badge" title="Business-flow path: document role pattern with continuous document IDs">Business flow</span>
+                {/if}
+                {#if isCurated}
+                  <span class="curated-badge" title="Curated knowledge: editorial pick from the verified fixture set, not algorithm-ranked">curated</span>
                 {/if}
               </div>
               <!-- Row 2: FK field labels, one per hop -->
@@ -477,9 +528,12 @@
                   {/each}
                 </div>
               {/if}
-              <!-- Row 3: breakdown — hops · semantic link counts · via tables -->
+              <!-- Row 3: breakdown — hops · raw score (class ≤2 only) · semantic link counts · via tables -->
               <div class="path-breakdown">
                 {hops} hop{hops !== 1 ? 's' : ''}
+                {#if result.qualityClass <= 2}
+                  <span aria-hidden="true"> · </span>score {result.score}
+                {/if}
                 {#if result.breakdown.generic > 0}
                   <span aria-hidden="true"> · </span>{result.breakdown.generic} generic link{result.breakdown.generic !== 1 ? 's' : ''}
                 {/if}
@@ -490,6 +544,17 @@
                   <span aria-hidden="true"> · </span>via {result.steps.slice(1, -1).map((s) => s.table).join(', ')}
                 {/if}
               </div>
+              <!-- Class-3 rows: why this ranks here, spelled out instead of a number -->
+              {#if result.qualityClass === 3}
+                <div class="reason-chips" role="list" aria-label="Why this path ranks here">
+                  {#each result.reasonCodes as code}
+                    <span class="reason-chip" role="listitem">{REASON_LABELS[code] ?? code}</span>
+                  {/each}
+                </div>
+                {#if tieNote}
+                  <p class="tie-note">{tieNote}</p>
+                {/if}
+              {/if}
             </div>
           </li>
         {/each}
@@ -855,6 +920,61 @@
     color: var(--clr-blue, #4fc3f7);
     margin-left: 4px;
     flex-shrink: 0;
+  }
+
+  /* Class-3 (business flow): replaces the raw score with a distinct badge */
+  .class3-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255, 180, 0, 0.14);
+    border: 1px solid rgba(255, 180, 0, 0.35);
+    color: #ffb400;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+
+  /* Editorial badge: fixture-driven curated knowledge, visually distinct
+     from every algorithm-ranked marker (shortest/cleanest/class). */
+  .curated-badge {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(171, 71, 188, 0.12);
+    border: 1px solid rgba(171, 71, 188, 0.35);
+    color: #ab47bc;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+
+  /* Reason codes rendered as human-readable chips (class-3 rows) */
+  .reason-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+  }
+
+  .reason-chip {
+    font-size: 10px;
+    color: var(--clr-text-muted);
+    background: rgba(79, 195, 247, 0.07);
+    border: 1px solid rgba(79, 195, 247, 0.22);
+    border-radius: 4px;
+    padding: 1px 6px;
+  }
+
+  .tie-note {
+    font-size: 10px;
+    font-style: italic;
+    color: var(--clr-text-faint);
+    margin: 2px 0 0;
   }
 
   .path-table-link {
