@@ -1,8 +1,9 @@
-// JS golden test (Q11 parity): runs the golden pairs and compares the top-20
-// table sequences and scores (6 decimals) against tests/golden-results.json,
-// which is the cross-language contract — the Python suite
-// (fno-dev-copilot-spike/server/tests/golden_test.py) asserts the same file
-// against the Python implementation, so JS ≡ Python transitively.
+// JS golden test (Q5/Q11 parity): runs the golden pairs and compares the
+// top-20 table sequences, scores (6 decimals), qualityClass and reason codes
+// against tests/golden-results.json, which is the cross-language contract —
+// the Python suite (fno-dev-copilot-spike/server/tests/golden_test.py)
+// asserts the same file against the Python implementation, so JS ≡ Python
+// transitively.
 //
 //   node tests/golden-test.mjs          # verify
 //   node tests/golden-test.mjs --update # regenerate golden-results.json
@@ -17,7 +18,7 @@ const UPDATE = process.argv.includes('--update')
 
 const round6 = (x) => Math.round(x * 1e6) / 1e6
 
-const generated = { version: 1, generatedBy: 'tests/golden-test.mjs', pairs: [] }
+const generated = { version: 2, generatedBy: 'tests/golden-test.mjs', pairs: [] }
 for (const p of PAIRS.pairs) {
   const res = findPaths(p.source, p.target, p.maxHops, {
     sort: p.sort ?? 'unique',
@@ -28,6 +29,8 @@ for (const p of PAIRS.pairs) {
     results: res.results.map((r) => ({
       tables: r.steps.map((s) => s.table),
       score: round6(r.score),
+      qualityClass: r.qualityClass,
+      reasonCodes: r.reasonCodes,
     })),
   })
 }
@@ -69,9 +72,11 @@ for (const gp of generated.pairs) {
     const w = want[i]
     const seqOk = g.tables.join('>') === w.tables.join('>')
     const scoreOk = Math.abs(g.score - w.score) < 0.5e-6
-    if (!seqOk || !scoreOk) {
+    const classOk = g.qualityClass === w.qualityClass
+    const reasonsOk = JSON.stringify(g.reasonCodes) === JSON.stringify(w.reasonCodes)
+    if (!seqOk || !scoreOk || !classOk || !reasonsOk) {
       pairFail = true
-      console.log(`FAIL ${gp.source}->${gp.target} rank ${i + 1}: got ${g.tables.join('>')} ${g.score} want ${w.tables.join('>')} ${w.score}`)
+      console.log(`FAIL ${gp.source}->${gp.target} rank ${i + 1}: got ${g.tables.join('>')} ${g.score} c${g.qualityClass} [${g.reasonCodes.join(',')}] want ${w.tables.join('>')} ${w.score} c${w.qualityClass} [${w.reasonCodes.join(',')}]`)
       if (failures++ > 5) break
     }
   }

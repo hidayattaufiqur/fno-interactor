@@ -1,7 +1,9 @@
-// Assert the fixture suite against the live pathfinder (Q9: CI-asserted
+// Assert the fixture suite against the live pathfinder (Q9/Q14: CI-asserted
 // top-K surfacing). Every mustSurface path must appear within `bar`
-// (default top-10) of the given mode; named asserts implement the extra
-// quality gates (single-subtree, sane top, payment noise).
+// (default top-10) of the given mode; every mustNotSurface path must NOT
+// appear within it; classExpect asserts qualityClass bounds (min/max) on
+// surfaced paths. Named asserts implement the extra quality gates
+// (single-subtree, sane top, payment noise).
 //
 //   node tests/assert-fixtures.mjs
 //
@@ -110,6 +112,27 @@ for (const f of FIXTURES.pairs) {
     const rank = top.findIndex((r) => r.steps.map((s) => s.table).join('>') === seq)
     if (rank === -1) {
       problems.push(`mustSurface ${seq} NOT in top-${bar} (shortest=${res.shortest}, truncated=${res.truncated} ${JSON.stringify(res.truncation)})`)
+    }
+  }
+  // Negative surfacing (Q14): mustNotSurface paths must NOT appear in top-N.
+  for (const mustNot of f.mustNotSurface ?? []) {
+    const seq = mustNot.join('>')
+    const rank = top.findIndex((r) => r.steps.map((s) => s.table).join('>') === seq)
+    if (rank !== -1) {
+      problems.push(`mustNotSurface ${seq} IS in top-${bar} at rank ${rank + 1} (class ${top[rank].qualityClass})`)
+    }
+  }
+  // qualityClass bounds (Q1/Q5): asserted on surfaced result rows.
+  for (const ce of f.classExpect ?? []) {
+    const seq = ce.path.join('>')
+    const idx = top.findIndex((r) => r.steps.map((s) => s.table).join('>') === seq)
+    if (idx === -1) continue // rank assertions above already flag absence
+    const cls = top[idx].qualityClass
+    if (ce.min !== undefined && cls < ce.min) {
+      problems.push(`classExpect ${seq}: class ${cls} < min ${ce.min}`)
+    }
+    if (ce.max !== undefined && cls > ce.max) {
+      problems.push(`classExpect ${seq}: class ${cls} > max ${ce.max}`)
     }
   }
   for (const a of f.asserts ?? []) {
