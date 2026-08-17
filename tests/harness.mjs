@@ -32,7 +32,7 @@ function build() {
     readFileSync(join(ROOT, 'src/lib/pathScoring.js'), 'utf8')
   )
 
-  // pathfinder.js imports three $lib modules — rewrite to local stubs.
+  // pathfinder.js imports four $lib modules — rewrite to local stubs.
   let pfSrc = readFileSync(join(ROOT, 'src/lib/pathfinder.js'), 'utf8')
   pfSrc = pfSrc
     .replace(
@@ -44,8 +44,12 @@ function build() {
       `import { tableDefs } from './stub-flows.mjs'`
     )
     .replace(
-      `import { scoreEdge, scorePath } from '$lib/pathScoring'`,
-      `import { scoreEdge, scorePath } from './pathScoring.mjs'`
+      `import { getSpecificityMap } from '$lib/stores/specificity'`,
+      `import { getSpecificityMap } from './stub-specificity.mjs'`
+    )
+    .replace(
+      `import { scoreEdge, scorePath, compareV2, classHintFor, isPlumbingTable } from '$lib/pathScoring'`,
+      `import { scoreEdge, scorePath, compareV2, classHintFor, isPlumbingTable } from './pathScoring.mjs'`
     )
   writeFileSync(join(SCRATCH, 'pathfinder.mjs'), pfSrc)
 
@@ -66,6 +70,18 @@ function build() {
       `const reverseMap = ${JSON.stringify(reverseMap)}\n` +
       `export function getForwardMap() { return forwardMap }\n` +
       `export function getReverseMap() { return reverseMap }\n`
+  )
+
+  // Stub specificity: the v2 edge-specificity artifact (static/data/
+  // edge-specificity.json), embedded once like the FK map. The pathfinder
+  // reads it synchronously via getSpecificityMap().
+  const specMap = JSON.parse(
+    readFileSync(join(ROOT, 'static/data/edge-specificity.json'), 'utf8')
+  )
+  writeFileSync(
+    join(SCRATCH, 'stub-specificity.mjs'),
+    'const specMap = ' + JSON.stringify(specMap) + '\n' +
+      'export function getSpecificityMap() { return specMap }\n'
   )
 
   // Stub flows: documented set = keys of tableDefs in flows.ts.

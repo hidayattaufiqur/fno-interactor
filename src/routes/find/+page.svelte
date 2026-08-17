@@ -5,6 +5,7 @@
   import { canonicalModule } from '$lib/utils'
   import { findState } from '$lib/stores/findState'
   import { fkLoadState, fkLoadError, loadFkMap, getAllFkTableNames } from '$lib/stores/fkMap'
+  import { specificityLoadState, specificityLoadError, loadSpecificity } from '$lib/stores/specificity'
   import { findPaths } from '$lib/pathfinder'
 
   // ── Bind store fields to local vars for template convenience ───────────────
@@ -115,6 +116,7 @@
   // Kick off pre-loading on first keypress to reduce perceived latency
   function handleFirstType() {
     if ($fkLoadState === 'idle') loadFkMap()
+    if ($specificityLoadState === 'idle') loadSpecificity()
   }
 
   // ── Pathfinding ────────────────────────────────────────────────────────────
@@ -138,6 +140,18 @@
         searchState = 'idle'
         searchError = `Failed to load FK data: ${$fkLoadError}`
         return
+      }
+    }
+
+    // v2 ranking depends on the edge-specificity artifact (Q7-Q9); without it
+    // every edge falls back to bucket 3 (rare), which would silently change
+    // scores and ordering vs the golden contract. Load it before ranking.
+    if ($specificityLoadState !== 'ready') {
+      await loadSpecificity()
+      if ($specificityLoadState === 'error') {
+        // Degrade honestly: fall back to the all-rare map rather than fail
+        // the search; the ranking stays deterministic, just less specific.
+        console.warn(`edge-specificity map unavailable (${$specificityLoadError}); ranking with all-rare buckets`)
       }
     }
 
