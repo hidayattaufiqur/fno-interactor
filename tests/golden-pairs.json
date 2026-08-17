@@ -10,6 +10,7 @@
     { "source": "SalesTable", "target": "VendTable", "maxHops": 4, "maxResults": 20, "sort": "unique" },
     { "source": "InventTrans", "target": "CustTable", "maxHops": 3, "maxResults": 20, "sort": "unique" },
     { "source": "SalesLine", "target": "CustTable", "maxHops": 1, "maxResults": 20, "sort": "unique" },
-    { "source": "ProjGrant", "target": "ProjGrantType", "maxHops": 1, "maxResults": 20, "sort": "unique" }
+    { "source": "ProjGrant", "target": "ProjGrantType", "maxHops": 1, "maxResults": 20, "sort": "unique" },
+    { "source": "SalesLine", "target": "TaxTable", "maxHops": 5, "maxResults": 20, "sort": "unique" }
   ]
 }

@@ -86,6 +86,47 @@ const ASSERT_IMPL = {
   'top10-no-payment-noise': assertTop10NoPaymentNoise,
 }
 
+/** Ghost-table guard: TaxItemGroupData must never appear in fk-map.json. */
+function assertNoGhostTaxItemGroupData() {
+  const ghost = 'TaxItemGroupData'
+  const where = []
+  if (ghost in fwd) where.push('forward-map key (parent)')
+  if (rev[ghost]) where.push('child-table entry')
+  return where.length
+    ? { ok: false, detail: `ghost table ${ghost} present in fk-map.json as ${where.join(' and ')} — hallucinated name; the real line table is TaxOnItem` }
+    : { ok: true }
+}
+
+/**
+ * Posted-tax invariant: top-5 must contain a path SalesLine >
+ * SourceDocumentLine > TaxTrans > [any leaf] > TaxTable. The leaf table is
+ * expected to vary across map regenerations (TaxJurisdiction ranked 1 on the
+ * old map; TaxTransExtensionTH is the current best), so only the TaxTrans
+ * prefix + TaxTable suffix are pinned.
+ */
+function assertTop5TaxPostedPath(results) {
+  const top5 = results.slice(0, 5)
+  for (const r of top5) {
+    const steps = r.steps.map((s) => s.table)
+    if (
+      steps.length >= 4 &&
+      steps[0] === 'SalesLine' &&
+      steps[1] === 'SourceDocumentLine' &&
+      steps[2] === 'TaxTrans' &&
+      steps[steps.length - 1] === 'TaxTable'
+    ) {
+      return { ok: true }
+    }
+  }
+  return {
+    ok: false,
+    detail: `no top-5 path matches SalesLine>SourceDocumentLine>TaxTrans>*>TaxTable; got: ${top5.map((r) => r.steps.map((s) => s.table).join('>')).join(' | ')}`,
+  }
+}
+
+ASSERT_IMPL['no-ghost-taxitemgroupdata'] = assertNoGhostTaxItemGroupData
+ASSERT_IMPL['top5-taxposted-path'] = assertTop5TaxPostedPath
+
 // --- run ---------------------------------------------------------------------
 
 let failures = 0

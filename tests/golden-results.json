@@ -48,22 +48,6 @@
         {
           "tables": [
             "InventTable",
-            "WMSJournalTrans",
-            "SalesLine",
-            "CustTable"
-          ],
-          "score": 14,
-          "qualityClass": 3,
-          "reasonCodes": [
-            "business-flow-pattern",
-            "document-id-continuity",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventTable",
             "SMAAgreementLine",
             "SMAServiceOrderLine",
             "SMAServiceOrderTable",
@@ -73,23 +57,6 @@
           "qualityClass": 2,
           "reasonCodes": [
             "business-key-joins",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventTable",
-            "CustInvoiceTrans",
-            "AgreementLineReleasedLine",
-            "SalesLine",
-            "CustTable"
-          ],
-          "score": 18,
-          "qualityClass": 2,
-          "reasonCodes": [
-            "business-key-joins",
-            "named-reference-joins",
             "curated-tables",
             "rare-relations"
           ]
@@ -114,7 +81,7 @@
             "InventTable",
             "VendInvoiceTrans",
             "ProjItemTrans",
-            "ProjProposalItem",
+            "SalesLine",
             "CustTable"
           ],
           "score": 17,
@@ -130,7 +97,7 @@
             "InventTable",
             "VendInvoiceTrans",
             "ProjItemTrans",
-            "SalesLine",
+            "ProjProposalItem",
             "CustTable"
           ],
           "score": 17,
@@ -279,7 +246,7 @@
             "InventTable",
             "InventJournalTrans",
             "ProjItemTrans",
-            "ProjProposalItem",
+            "SalesLine",
             "CustTable"
           ],
           "score": 16,
@@ -295,7 +262,23 @@
             "InventTable",
             "PurchLine",
             "ProjItemTrans",
-            "ProjProposalItem",
+            "SalesLine",
+            "CustTable"
+          ],
+          "score": 16,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "common-relations"
+          ]
+        },
+        {
+          "tables": [
+            "InventTable",
+            "PurchReqLine",
+            "ProjItemTrans",
+            "SalesLine",
             "CustTable"
           ],
           "score": 16,
@@ -311,7 +294,7 @@
             "InventTable",
             "InventJournalTrans",
             "ProjItemTrans",
-            "SalesLine",
+            "ProjProposalItem",
             "CustTable"
           ],
           "score": 16,
@@ -327,7 +310,23 @@
             "InventTable",
             "PurchLine",
             "ProjItemTrans",
-            "SalesLine",
+            "ProjProposalItem",
+            "CustTable"
+          ],
+          "score": 16,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "common-relations"
+          ]
+        },
+        {
+          "tables": [
+            "InventTable",
+            "PurchReqLine",
+            "ProjItemTrans",
+            "ProjProposalItem",
             "CustTable"
           ],
           "score": 16,
@@ -354,10 +353,10 @@
             "SalesLine"
           ],
           "score": 11,
-          "qualityClass": 2,
+          "qualityClass": 3,
           "reasonCodes": [
-            "business-key-joins",
-            "named-reference-joins",
+            "business-flow-pattern",
+            "document-id-continuity",
             "curated-tables",
             "rare-relations"
           ]
@@ -679,6 +678,20 @@
         {
           "tables": [
             "SalesTable",
+            "InventQualityOrderTable",
+            "PurchTable"
+          ],
+          "score": 11,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesTable",
             "InventQuarantineOrder",
             "PurchTable"
           ],
@@ -791,34 +804,6 @@
         {
           "tables": [
             "SalesTable",
-            "ContactPerson",
-            "PurchTable"
-          ],
-          "score": 10,
-          "qualityClass": 2,
-          "reasonCodes": [
-            "business-key-joins",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "SalesTable",
-            "InventLocation",
-            "PurchTable"
-          ],
-          "score": 10,
-          "qualityClass": 2,
-          "reasonCodes": [
-            "business-key-joins",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "SalesTable",
             "PurchLine",
             "PurchTable"
           ],
@@ -898,7 +883,20 @@
         {
           "tables": [
             "SalesTable",
-            "InventSite",
+            "InventTestRelatedOperations",
+            "PurchTable"
+          ],
+          "score": 9,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "SalesTable",
+            "NumberSequenceGroup",
             "PurchTable"
           ],
           "score": 9,
@@ -937,10 +935,69 @@
           "tables": [
             "Currency",
             "BankAccountTrans",
+            "BankAccountTable",
+            "CompanyInfo"
+          ],
+          "score": 9,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "Currency",
+            "CustBillOfExchangeTrans",
+            "BankAccountTable",
+            "CompanyInfo"
+          ],
+          "score": 8,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "Currency",
+            "VendPromissoryNoteTrans",
+            "BankAccountTable",
+            "CompanyInfo"
+          ],
+          "score": 8,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "Currency",
+            "BankChequePaymTrans",
+            "BankAccountTable",
+            "CompanyInfo"
+          ],
+          "score": 7,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "Currency",
+            "VendPackingSlipTrans",
             "LogisticsAddressCountryRegion",
             "CompanyInfo"
           ],
-          "score": 6,
+          "score": 5,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
@@ -952,15 +1009,14 @@
         {
           "tables": [
             "Currency",
-            "VendPackingSlipTrans",
-            "LogisticsAddressCountryRegion",
+            "CustVendPaymProposalLine",
+            "BankAccountTable",
             "CompanyInfo"
           ],
-          "score": 6,
+          "score": 5,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
-            "generic-lookup-intermediate",
             "curated-tables",
             "rare-relations"
           ]
@@ -972,7 +1028,7 @@
             "LogisticsAddressCountryRegion",
             "CompanyInfo"
           ],
-          "score": 4,
+          "score": 3,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
@@ -988,7 +1044,7 @@
             "LogisticsAddressCountryRegion",
             "CompanyInfo"
           ],
-          "score": 4,
+          "score": 3,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
@@ -1000,10 +1056,23 @@
         {
           "tables": [
             "Currency",
+            "BankAccountTable",
+            "CompanyInfo"
+          ],
+          "score": 2,
+          "qualityClass": 1,
+          "reasonCodes": [
+            "weak-semantic-signal",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "Currency",
             "LogisticsAddressCountryRegion",
             "CompanyInfo"
           ],
-          "score": 1,
+          "score": 0,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
@@ -1014,9 +1083,9 @@
         {
           "tables": [
             "Currency",
-            "BankAccountTrans",
-            "BankChequeTable",
-            "BankAccountTable",
+            "InventTransferLine",
+            "InventTransOrigin",
+            "InventPendingRegistrationDetail",
             "CompanyInfo"
           ],
           "score": 13,
@@ -1035,7 +1104,7 @@
             "TrvRequisitionLine",
             "CompanyInfo"
           ],
-          "score": 12,
+          "score": 11,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
@@ -1047,31 +1116,16 @@
         {
           "tables": [
             "Currency",
-            "SMAServiceOrderLine",
-            "ProjCostTrans",
-            "ProjInvoiceCost",
+            "InventTrans",
+            "InventTransOrigin",
+            "InventPendingRegistrationDetail",
             "CompanyInfo"
           ],
-          "score": 12,
+          "score": 11,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "Currency",
-            "SMAServiceOrderLine",
-            "ProjCostTrans",
-            "ProjTransPosting",
-            "CompanyInfo"
-          ],
-          "score": 12,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
+            "named-reference-joins",
             "curated-tables",
             "rare-relations"
           ]
@@ -1084,23 +1138,7 @@
             "ProjEmplTrans",
             "CompanyInfo"
           ],
-          "score": 12,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "Currency",
-            "SMAAgreementLine",
-            "SMAServiceOrderLine",
-            "ProjEmplTrans",
-            "CompanyInfo"
-          ],
-          "score": 12,
+          "score": 11,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
@@ -1116,7 +1154,7 @@
             "ProjCostTrans",
             "CompanyInfo"
           ],
-          "score": 12,
+          "score": 11,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
@@ -1127,34 +1165,17 @@
         {
           "tables": [
             "Currency",
-            "VendPackingSlipTrans",
-            "SourceDocumentLine",
-            "ProjectRevenueLine",
+            "SMAAgreementLine",
+            "SMAServiceOrderLine",
+            "ProjEmplTrans",
             "CompanyInfo"
           ],
           "score": 11,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
-            "named-reference-joins",
             "curated-tables",
             "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "Currency",
-            "ProjectRevenueLine",
-            "SourceDocumentLine",
-            "PurchReqLine",
-            "CompanyInfo"
-          ],
-          "score": 11,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
-            "named-reference-joins",
-            "curated-tables"
           ]
         },
         {
@@ -1165,55 +1186,7 @@
             "ProjCostTrans",
             "CompanyInfo"
           ],
-          "score": 11,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "Currency",
-            "ProjItemTrans",
-            "SMAServiceOrderLine",
-            "ProjEmplTrans",
-            "CompanyInfo"
-          ],
-          "score": 11,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "Currency",
-            "ProjRevenueTrans",
-            "SMAServiceOrderLine",
-            "ProjEmplTrans",
-            "CompanyInfo"
-          ],
-          "score": 11,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "Currency",
-            "ProjItemTrans",
-            "SMAServiceOrderLine",
-            "ProjCostTrans",
-            "CompanyInfo"
-          ],
-          "score": 11,
+          "score": 10,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
@@ -1229,7 +1202,23 @@
             "ProjCostTrans",
             "CompanyInfo"
           ],
-          "score": 11,
+          "score": 10,
+          "qualityClass": 0,
+          "reasonCodes": [
+            "plumbing-detour",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "Currency",
+            "ProjRevenueTrans",
+            "SMAServiceOrderLine",
+            "ProjEmplTrans",
+            "CompanyInfo"
+          ],
+          "score": 10,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
@@ -1281,43 +1270,11 @@
         {
           "tables": [
             "InventDim",
-            "InventBatch",
+            "VendPackingSlipTrans",
             "LogisticsAddressCountryRegion",
             "CompanyInfo"
           ],
-          "score": 8,
-          "qualityClass": 1,
-          "reasonCodes": [
-            "weak-semantic-signal",
-            "generic-lookup-intermediate",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventDim",
-            "InventGTD_RU",
-            "LogisticsAddressCountryRegion",
-            "CompanyInfo"
-          ],
-          "score": 8,
-          "qualityClass": 1,
-          "reasonCodes": [
-            "weak-semantic-signal",
-            "generic-lookup-intermediate",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventDim",
-            "CustInvoiceTrans",
-            "LogisticsAddressCountryRegion",
-            "CompanyInfo"
-          ],
-          "score": 6,
+          "score": 5,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
@@ -1333,23 +1290,7 @@
             "LogisticsAddressCountryRegion",
             "CompanyInfo"
           ],
-          "score": 6,
-          "qualityClass": 1,
-          "reasonCodes": [
-            "weak-semantic-signal",
-            "generic-lookup-intermediate",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventDim",
-            "ProjInvoiceItem",
-            "LogisticsAddressCountryRegion",
-            "CompanyInfo"
-          ],
-          "score": 6,
+          "score": 5,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
@@ -1365,7 +1306,7 @@
             "LogisticsAddressCountryRegion",
             "CompanyInfo"
           ],
-          "score": 6,
+          "score": 5,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
@@ -1377,11 +1318,11 @@
         {
           "tables": [
             "InventDim",
-            "VendPackingSlipTrans",
+            "CustInvoiceTrans",
             "LogisticsAddressCountryRegion",
             "CompanyInfo"
           ],
-          "score": 6,
+          "score": 5,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
@@ -1397,7 +1338,7 @@
             "LogisticsAddressCountryRegion",
             "CompanyInfo"
           ],
-          "score": 5,
+          "score": 4,
           "qualityClass": 1,
           "reasonCodes": [
             "weak-semantic-signal",
@@ -1425,22 +1366,6 @@
         {
           "tables": [
             "InventDim",
-            "InventJournalTrans",
-            "ProjItemTrans",
-            "ProjTransPosting",
-            "CompanyInfo"
-          ],
-          "score": 13,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventDim",
             "InventTransferLine",
             "InventTransOrigin",
             "InventPendingRegistrationDetail",
@@ -1457,12 +1382,27 @@
         {
           "tables": [
             "InventDim",
-            "ProdCalcTrans",
-            "VendTable",
-            "WorkCalendarTable",
+            "InventTransOrigin",
+            "InventPendingRegistrationDetail",
             "CompanyInfo"
           ],
-          "score": 13,
+          "score": 11,
+          "qualityClass": 0,
+          "reasonCodes": [
+            "plumbing-detour",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "InventDim",
+            "InventJournalTrans",
+            "ProjItemTrans",
+            "PurchReqLine",
+            "CompanyInfo"
+          ],
+          "score": 11,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
@@ -1478,7 +1418,40 @@
             "PurchReqTable",
             "CompanyInfo"
           ],
-          "score": 12,
+          "score": 11,
+          "qualityClass": 0,
+          "reasonCodes": [
+            "plumbing-detour",
+            "named-reference-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "InventDim",
+            "SMAAgreementLine",
+            "SMAServiceOrderLine",
+            "ProjEmplTrans",
+            "CompanyInfo"
+          ],
+          "score": 11,
+          "qualityClass": 0,
+          "reasonCodes": [
+            "plumbing-detour",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "InventDim",
+            "VendInvoiceTrans",
+            "ProjItemTrans",
+            "ProjTransPosting",
+            "CompanyInfo"
+          ],
+          "score": 11,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
@@ -1495,55 +1468,7 @@
             "ProjInvoiceCost",
             "CompanyInfo"
           ],
-          "score": 12,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventDim",
-            "ProjItemTrans",
-            "SMAServiceOrderLine",
-            "ProjEmplTrans",
-            "CompanyInfo"
-          ],
-          "score": 12,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventDim",
-            "SMAAgreementLine",
-            "SMAServiceOrderLine",
-            "ProjEmplTrans",
-            "CompanyInfo"
-          ],
-          "score": 12,
-          "qualityClass": 0,
-          "reasonCodes": [
-            "plumbing-detour",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventDim",
-            "ProjItemTrans",
-            "SMAServiceOrderLine",
-            "ProjCostTrans",
-            "CompanyInfo"
-          ],
-          "score": 12,
+          "score": 11,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
@@ -1559,12 +1484,76 @@
             "ProjCostTrans",
             "CompanyInfo"
           ],
-          "score": 12,
+          "score": 11,
           "qualityClass": 0,
           "reasonCodes": [
             "plumbing-detour",
             "curated-tables",
             "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "InventDim",
+            "SMAServiceOrderLine",
+            "ProjCostTrans",
+            "ProjTransPosting",
+            "CompanyInfo"
+          ],
+          "score": 11,
+          "qualityClass": 0,
+          "reasonCodes": [
+            "plumbing-detour",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "InventDim",
+            "CustInvoiceTrans",
+            "SourceDocumentLine",
+            "TrvRequisitionLine",
+            "CompanyInfo"
+          ],
+          "score": 10,
+          "qualityClass": 0,
+          "reasonCodes": [
+            "plumbing-detour",
+            "named-reference-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "InventDim",
+            "CustPackingSlipTrans",
+            "SourceDocumentLine",
+            "ProjectRevenueLine",
+            "CompanyInfo"
+          ],
+          "score": 10,
+          "qualityClass": 0,
+          "reasonCodes": [
+            "plumbing-detour",
+            "named-reference-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "InventDim",
+            "CustInvoiceTrans",
+            "SourceDocumentLine",
+            "ProjectRevenueLine",
+            "CompanyInfo"
+          ],
+          "score": 10,
+          "qualityClass": 0,
+          "reasonCodes": [
+            "plumbing-detour",
+            "named-reference-joins",
+            "curated-tables"
           ]
         }
       ]
@@ -1576,6 +1565,23 @@
       "maxResults": 20,
       "sort": "unique",
       "results": [
+        {
+          "tables": [
+            "SalesTable",
+            "WMSJournalTrans",
+            "PurchLine",
+            "PurchReqLine",
+            "VendTable"
+          ],
+          "score": 20,
+          "qualityClass": 3,
+          "reasonCodes": [
+            "business-flow-pattern",
+            "document-id-continuity",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
         {
           "tables": [
             "SalesTable",
@@ -1618,22 +1624,6 @@
             "VendTable"
           ],
           "score": 15,
-          "qualityClass": 3,
-          "reasonCodes": [
-            "business-flow-pattern",
-            "document-id-continuity",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "SalesTable",
-            "SalesLine",
-            "CustTable",
-            "VendTable"
-          ],
-          "score": 14,
           "qualityClass": 3,
           "reasonCodes": [
             "business-flow-pattern",
@@ -1695,9 +1685,9 @@
         {
           "tables": [
             "SalesTable",
-            "RetailTransactionOrderInvoiceTrans",
-            "RetailTerminalTable",
-            "RetailTMPTransactionSalesTrans",
+            "CreditCardAuthTrans",
+            "CustInvoiceJour",
+            "CustTable",
             "VendTable"
           ],
           "score": 18,
@@ -1727,9 +1717,25 @@
         {
           "tables": [
             "SalesTable",
-            "CreditCardAuthTrans",
-            "CustInvoiceJour",
-            "CustTable",
+            "RetailTransactionOrderInvoiceTrans",
+            "RetailTerminalTable",
+            "RetailTMPTransactionSalesTrans",
+            "VendTable"
+          ],
+          "score": 18,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesTable",
+            "InventPackagingMaterialTrans",
+            "CustInvoiceTrans",
+            "InventTable",
             "VendTable"
           ],
           "score": 18,
@@ -1745,7 +1751,7 @@
             "SalesTable",
             "SalesLine",
             "ProjItemTrans",
-            "InventTable",
+            "PurchReqLine",
             "VendTable"
           ],
           "score": 18,
@@ -1775,38 +1781,6 @@
         {
           "tables": [
             "SalesTable",
-            "InventPackagingMaterialTrans",
-            "CustInvoiceTrans",
-            "InventTable",
-            "VendTable"
-          ],
-          "score": 18,
-          "qualityClass": 2,
-          "reasonCodes": [
-            "business-key-joins",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "SalesTable",
-            "CustPackingSlipTrans",
-            "SourceDocumentLine",
-            "VendInvoiceInfoLine",
-            "VendTable"
-          ],
-          "score": 17,
-          "qualityClass": 2,
-          "reasonCodes": [
-            "business-key-joins",
-            "named-reference-joins",
-            "curated-tables"
-          ]
-        },
-        {
-          "tables": [
-            "SalesTable",
             "CustInvoiceBackorderLine",
             "InventTransOrigin",
             "VendInvoiceInfoLine",
@@ -1831,6 +1805,38 @@
           "qualityClass": 2,
           "reasonCodes": [
             "business-key-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "SalesTable",
+            "CustPackingSlipTrans",
+            "SourceDocumentLine",
+            "PurchReqLine",
+            "VendTable"
+          ],
+          "score": 17,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "named-reference-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "SalesTable",
+            "CustPackingSlipTrans",
+            "SourceDocumentLine",
+            "VendInvoiceInfoLine",
+            "VendTable"
+          ],
+          "score": 17,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "named-reference-joins",
             "curated-tables"
           ]
         },
@@ -1872,22 +1878,6 @@
             "SalesTable",
             "InventCostTrans",
             "PurchTable",
-            "VendTable"
-          ],
-          "score": 15,
-          "qualityClass": 2,
-          "reasonCodes": [
-            "business-key-joins",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "SalesTable",
-            "InventPackagingMaterialTrans",
-            "CustInvoiceTrans",
-            "AssetTable",
             "VendTable"
           ],
           "score": 15,
@@ -1972,6 +1962,20 @@
         {
           "tables": [
             "InventTrans",
+            "InventTransPosting",
+            "ProjTable",
+            "CustTable"
+          ],
+          "score": 13,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "InventTrans",
             "InventSum",
             "SalesLine",
             "CustTable"
@@ -2023,6 +2027,21 @@
           "reasonCodes": [
             "business-key-joins",
             "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "InventTrans",
+            "InventTransferJour",
+            "InventTransferTable",
+            "CustTable"
+          ],
+          "score": 12,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
           ]
         },
         {
@@ -2043,15 +2062,16 @@
         {
           "tables": [
             "InventTrans",
-            "InventTransPosting",
-            "ProjTable",
+            "InventTransferJour",
+            "VendTable",
             "CustTable"
           ],
           "score": 11,
           "qualityClass": 2,
           "reasonCodes": [
             "business-key-joins",
-            "curated-tables"
+            "curated-tables",
+            "rare-relations"
           ]
         },
         {
@@ -2097,36 +2117,6 @@
             "business-key-joins",
             "curated-tables",
             "common-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventTrans",
-            "InventTransferJour",
-            "InventTransferTable",
-            "CustTable"
-          ],
-          "score": 10,
-          "qualityClass": 2,
-          "reasonCodes": [
-            "business-key-joins",
-            "curated-tables",
-            "rare-relations"
-          ]
-        },
-        {
-          "tables": [
-            "InventTrans",
-            "InventTransferJour",
-            "VendTable",
-            "CustTable"
-          ],
-          "score": 9,
-          "qualityClass": 2,
-          "reasonCodes": [
-            "business-key-joins",
-            "curated-tables",
-            "rare-relations"
           ]
         },
         {
@@ -2160,14 +2150,29 @@
         {
           "tables": [
             "InventTrans",
-            "smmActivities",
-            "SalesQuotationLine",
+            "Currency",
+            "CustTable"
+          ],
+          "score": -1,
+          "qualityClass": 1,
+          "reasonCodes": [
+            "weak-semantic-signal",
+            "generic-lookup-intermediate",
+            "curated-tables",
+            "common-relations"
+          ]
+        },
+        {
+          "tables": [
+            "InventTrans",
+            "ProjTable",
+            "SpecTrans",
             "CustTable"
           ],
           "score": 8,
-          "qualityClass": 2,
+          "qualityClass": 0,
           "reasonCodes": [
-            "business-key-joins",
+            "plumbing-detour",
             "curated-tables",
             "rare-relations"
           ]
@@ -2175,30 +2180,16 @@
         {
           "tables": [
             "InventTrans",
-            "smmActivities",
-            "SalesLine",
+            "ProjTable",
+            "PSATmpProjProposalTrans",
             "CustTable"
           ],
-          "score": 7,
-          "qualityClass": 2,
+          "score": 5,
+          "qualityClass": 0,
           "reasonCodes": [
-            "business-key-joins",
-            "curated-tables"
-          ]
-        },
-        {
-          "tables": [
-            "InventTrans",
-            "Currency",
-            "PriceDiscAdmTrans",
-            "CustTable"
-          ],
-          "score": 2,
-          "qualityClass": 1,
-          "reasonCodes": [
-            "weak-semantic-signal",
-            "generic-lookup-intermediate",
-            "curated-tables"
+            "plumbing-detour",
+            "curated-tables",
+            "common-relations"
           ]
         }
       ]
@@ -2241,6 +2232,325 @@
           "reasonCodes": [
             "business-key-joins",
             "named-reference-joins",
+            "rare-relations"
+          ]
+        }
+      ]
+    },
+    {
+      "source": "SalesLine",
+      "target": "TaxTable",
+      "maxHops": 5,
+      "maxResults": 20,
+      "sort": "unique",
+      "results": [
+        {
+          "tables": [
+            "SalesLine",
+            "AgreementLineReleasedLine",
+            "VendInvoiceTrans",
+            "FactureTrans_RU",
+            "TaxTable"
+          ],
+          "score": 14,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "named-reference-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "InventTransOriginSalesLine",
+            "InventTransOrigin",
+            "InventTransferLine",
+            "TaxTable"
+          ],
+          "score": 14,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "named-reference-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "InventTransOriginSalesLine",
+            "InventTransOrigin",
+            "LvNRTaxTrans",
+            "TaxTable"
+          ],
+          "score": 12,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "named-reference-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "InventTransOriginSalesLine",
+            "InventTransOrigin",
+            "TaxTrans",
+            "TaxTable"
+          ],
+          "score": 12,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "named-reference-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "InventTransferTable",
+            "InventTransferLine",
+            "TaxTable"
+          ],
+          "score": 11,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "CustTable",
+            "CustVendPaymProposalLine",
+            "TaxTable"
+          ],
+          "score": 9,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "InventTransferTable",
+            "TaxTrans_IN",
+            "TaxTable"
+          ],
+          "score": 9,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "InventTransOrigin",
+            "InventTransferLine",
+            "TaxTable"
+          ],
+          "score": 9,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "CustTable",
+            "LedgerJournalTrans",
+            "TaxTable"
+          ],
+          "score": 8,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "SourceDocumentLine",
+            "TaxUncommitted",
+            "TaxTable"
+          ],
+          "score": 7,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "named-reference-joins",
+            "curated-tables",
+            "common-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "SourceDocumentLine",
+            "TaxTrans",
+            "TaxTable"
+          ],
+          "score": 7,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "named-reference-joins",
+            "curated-tables",
+            "common-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "InventTransOrigin",
+            "LvNRTaxTrans",
+            "TaxTable"
+          ],
+          "score": 7,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "common-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "InventTransOrigin",
+            "TaxTrans",
+            "TaxTable"
+          ],
+          "score": 7,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "common-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "RAssetTable",
+            "TaxTable"
+          ],
+          "score": 6,
+          "qualityClass": 2,
+          "reasonCodes": [
+            "business-key-joins",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "ProjItemTrans",
+            "InventJournalTrans",
+            "Currency",
+            "TaxTable"
+          ],
+          "score": 8,
+          "qualityClass": 1,
+          "reasonCodes": [
+            "weak-semantic-signal",
+            "generic-lookup-intermediate",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "ProjItemTrans",
+            "UnitOfMeasure",
+            "TaxTable"
+          ],
+          "score": 4,
+          "qualityClass": 1,
+          "reasonCodes": [
+            "weak-semantic-signal",
+            "generic-lookup-intermediate",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "ProjItemTrans",
+            "Currency",
+            "TaxTable"
+          ],
+          "score": 4,
+          "qualityClass": 1,
+          "reasonCodes": [
+            "weak-semantic-signal",
+            "generic-lookup-intermediate",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "UnitOfMeasure",
+            "TaxTable"
+          ],
+          "score": 1,
+          "qualityClass": 1,
+          "reasonCodes": [
+            "weak-semantic-signal",
+            "generic-lookup-intermediate",
+            "curated-tables",
+            "rare-relations"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "Currency",
+            "TaxTable"
+          ],
+          "score": -1,
+          "qualityClass": 1,
+          "reasonCodes": [
+            "weak-semantic-signal",
+            "generic-lookup-intermediate",
+            "curated-tables"
+          ]
+        },
+        {
+          "tables": [
+            "SalesLine",
+            "WMSJournalTrans",
+            "PurchLine",
+            "TaxTrans",
+            "TaxTable"
+          ],
+          "score": 11,
+          "qualityClass": 0,
+          "reasonCodes": [
+            "plumbing-detour",
+            "curated-tables",
             "rare-relations"
           ]
         }

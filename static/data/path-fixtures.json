@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "note": "Regression fixtures for the Table Path Finder 'most unique' ranking (v2, grill t_3bf36e2e). Schema: {id, source, target, maxHops, mode ('unique'|'shortest', default 'unique'), bar ('top-N' | 'existence'), mustSurface: [table-path arrays], mustNotSurface: [table-path arrays], classExpect: [{path, min?, max?}], asserts: [named checks], note}. Every mustSurface path is existence-validated against static/data/fk-map.json by tests/validate-fixtures.mjs. bar='top-N': every path in mustSurface must appear within the top-N results of the given mode; every path in mustNotSurface must NOT appear within the top-N. bar='existence': mustSurface paths must be valid chains (they power the fixture-driven canonical-path UI). classExpect asserts qualityClass bounds (min/max) on surfaced paths. Named asserts (tests/assert-fixtures.mjs): top10-not-single-subtree, top10-sane, top10-no-payment-noise.",
+  "note": "Regression fixtures for the Table Path Finder 'most unique' ranking (v2, grill t_3bf36e2e). Schema: {id, source, target, maxHops, mode ('unique'|'shortest', default 'unique'), bar ('top-N' | 'existence'), mustSurface: [table-path arrays], mustNotSurface: [table-path arrays], classExpect: [{path, min?, max?}], asserts: [named checks], note}. Every mustSurface path is existence-validated against static/data/fk-map.json by tests/validate-fixtures.mjs. bar='top-N': every path in mustSurface must appear within the top-N results of the given mode; every path in mustNotSurface must NOT appear within the top-N. bar='existence': mustSurface paths must be valid chains (they power the fixture-driven canonical-path UI). classExpect asserts qualityClass bounds (min/max) on surfaced paths. Named asserts (tests/assert-fixtures.mjs): top10-not-single-subtree, top10-sane, top10-no-payment-noise, top5-taxposted-path (top-5 contains a TaxTrans-variant path ending at TaxTable, leaf wildcard), no-ghost-taxitemgroupdata (TaxItemGroupData must never appear in fk-map.json).",
   "pairs": [
     {
       "id": "inventtable-custtable-story",
@@ -217,6 +217,32 @@
       "mustSurface": [["InventTable", "InventTrans", "InventTransOrigin", "PurchLine", "VendTable"]],
       "classExpect": [{ "path": ["InventTable", "InventTrans", "InventTransOrigin", "PurchLine", "VendTable"], "min": 2 }],
       "note": "Q14 positive analogue (cross-module motif, edges 2/12/2/2): the purchase-side twin of the sales story path must stay in the retained pool. Measured rank 15/50, class 2, score 16 under v2. Pool-exclusion bar per Q13 (top-20): only bucket logic may cut it."
+    },
+    {
+      "id": "salesline-taxtable-preposting-legs",
+      "source": "SalesLine",
+      "target": "TaxTable",
+      "maxHops": 5,
+      "mode": "unique",
+      "bar": "existence",
+      "mustSurface": [
+        ["SalesLine", "TaxGroupHeading", "TaxGroupData", "TaxTable"],
+        ["SalesLine", "TaxItemGroupHeading", "TaxOnItem", "TaxTable"]
+      ],
+      "asserts": ["no-ghost-taxitemgroupdata"],
+      "note": "Pre-posting tax-resolution tripwire (re-baselined 2026-08-17 on fp 342774f9933f): the correct pre-posting answer for a sales line is the INTERSECTION of two legs — SalesLine.TaxGroup -> TaxGroupHeading -> TaxGroupData -> TaxTable and SalesLine.TaxItemGroup -> TaxItemGroupHeading -> TaxOnItem -> TaxTable (TaxOnItem is the real line table, key TaxItemGroup+TaxCode; the Google-derived 'TaxItemGroupData' name is a GHOST table in D365FO 10.0.2645.32). Existence bar: both chains must stay walkable in fk-map.json — this fixture fails loudly if the substrate regresses. Ranking is intentionally NOT asserted: both legs measured outside top-50 (TaxTable carries a generic -1 class cap, TaxGroupHeading is a 168-child hub). no-ghost-taxitemgroupdata guards the dataset/generator against reintroducing the hallucinated table. Posting state (recompute pre-posting vs read posted) is domain knowledge, not schema."
+    },
+    {
+      "id": "salesline-taxtable-posted-truth",
+      "source": "SalesLine",
+      "target": "TaxTable",
+      "maxHops": 5,
+      "mode": "unique",
+      "bar": "top-5",
+      "mustSurface": [["SalesLine", "SourceDocumentLine", "TaxTrans", "TaxTransExtensionTH", "TaxTable"]],
+      "classExpect": [{ "path": ["SalesLine", "SourceDocumentLine", "TaxTrans", "TaxTransExtensionTH", "TaxTable"], "min": 2 }],
+      "asserts": ["top5-taxposted-path", "no-ghost-taxitemgroupdata"],
+      "note": "Posted-answer ranking guard (re-baselined 2026-08-17 on fp 342774f9933f): the posted path must surface in top-5 via a SalesLine > SourceDocumentLine > TaxTrans > * > TaxTable route. The TaxJurisdiction leaf that ranked 1 on the old map is absent from top-50 after the 317-remove + 15-add re-baseline (legitimate drift, not a regression); current best leaf is TaxTransExtensionTH (rank 3, class 2, score 13; direct TaxTrans > TaxTable leaf at rank 16). The pinned leaf is EXPECTED TO VARY across regenerations — the wildcard assert top5-taxposted-path enforces the true invariant (a TaxTrans-variant path ending at TaxTable within top-5). Do not tune weights to force TaxJurisdiction back. Posting state is domain knowledge, not schema."
     }
   ]
 }
