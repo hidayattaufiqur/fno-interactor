@@ -4,35 +4,35 @@
     "script": "tools/generate-map.mjs",
     "version": "1.0.0"
   },
-  "generatedAt": "2026-08-17T21:50:43+07:00",
+  "generatedAt": "2026-08-17T21:52:07+07:00",
   "sourceDataset": {
     "name": "MicrosoftDynamicsTableAssociations",
     "path": "/home/smolpanda/Fun/Projects/MicrosoftDynamicsTableAssociations",
-    "gitCommitSha": "04485a9a80d9caee26ffac4c8128bb6a9c43f556",
-    "gitCommitDate": "2026-08-17T21:50:43+07:00",
-    "fileSha256": "c5b4ebe5059f00c5db31384f2babf0d1ef2b1345119e3f447dc63c03f26d5dda",
-    "entryCount": 39395,
-    "fileSize": 7594089
+    "gitCommitSha": "af2a7c3df2569c9a97aeed79c4d94610938bf1ba",
+    "gitCommitDate": "2026-08-17T21:52:07+07:00",
+    "fileSha256": "0a254997ca5393b086ade625c9a5bded2a011c8413eccfb1929feff987b695de",
+    "entryCount": 39078,
+    "fileSize": 7528571
   },
   "counts": {
-    "entriesTotal": 39395,
+    "entriesTotal": 39078,
     "cleanRelations": 32322,
-    "compositeRelations": 7013,
-    "expansionEdges": 11926,
+    "compositeRelations": 6696,
+    "expansionEdges": 11262,
     "dropped": {
       "markerOnlySpecs": 25,
       "unequalFieldLists": 0,
       "unparseableFields": 0,
-      "duplicateEdges": 480
+      "duplicateEdges": 478
     },
     "droppedTotal": 25,
-    "edges": 44248,
-    "tables": 5588,
-    "childTables": 5600,
-    "totalReferencedTables": 5633,
-    "selfEdges": 715,
+    "edges": 43584,
+    "tables": 5587,
+    "childTables": 5599,
+    "totalReferencedTables": 5632,
+    "selfEdges": 713,
     "orphanTables": 0,
     "connectedComponents": 48
   },
-  "fingerprint": "1c098c9a0f068a0c0131405ecc49cdbf8fee71366b6dab4816c3c9aa6966a523"
+  "fingerprint": "342774f9933ffe0af68a6254a5e00e07bbfeb960f6a9145f6d70b36adfa051a6"
 }
