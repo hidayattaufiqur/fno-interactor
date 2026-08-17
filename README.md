@@ -25,7 +25,7 @@ Stack
 - Framework: SvelteKit (static adapter)
 - Build tool: Vite
 - Data: Static TypeScript data files (data-as-code)
-  - Table relations dataset: included as static/data/fk-map.json (sourced from and inspired by https://github.com/ameyer505/MicrosoftDynamicsTableAssociations)
+  - Table relations dataset: included as static/data/fk-map.json + map-manifest.json, reproducibly generated from https://github.com/ameyer505/MicrosoftDynamicsTableAssociations (see "Dataset provenance & regeneration")
 
 Key decisions
 -------------
@@ -40,7 +40,8 @@ What's inside
 -------------
 - `src/routes/` - SvelteKit pages: the process-flow overview (`/`), the searchable table reference (`/tables`, `/tables/[name]`), the guided Table Path Finder (`/find`), and per-module flow pages (`/flow/[flowId]`).
 - `src/lib/` - shared components, pathfinding logic, and the flow/table metadata kept as TypeScript data files (data-as-code).
-- `static/data/fk-map.json` - the verified table-relationship dataset that powers the Table Path Finder (see NOTICE.md for provenance and licensing).
+- `static/data/fk-map.json` - the table-relationship dataset that powers the Table Path Finder (see NOTICE.md and "Dataset provenance & regeneration" below for provenance, licensing, and how to regenerate it).
+- `static/data/map-manifest.json` - provenance manifest for fk-map.json: source dataset commit SHA/content hash, generator version, counts (tables, edges, drops, composite expansions), and a deterministic fingerprint. `npm run verify:map` recomputes the fingerprint and asserts it matches the committed map.
 
 Local development
 -----------------
@@ -74,15 +75,26 @@ Source & Data Attribution
 ------------------------
 This README and the project's case study content were adapted from the companion case study on the author's portfolio site (hidayattaufiqur.dev).
 
-The table relationship dataset used by the Table Path Finder feature is included as `static/data/fk-map.json`. The dataset derives from table relationship data converted from HTML ERD files originally published by Microsoft and processed by Alex Meyer's MicrosoftDynamicsTableAssociations project, and has since been **verified against the real D365FO standard-source metadata** (version 10.0.2645.32): every relation in the shipped file is confirmed by the Alex Meyer (ameyer505) dataset plus table/field existence, by the D365FO AxTable relations in the synced standard source, or by Microsoft Learn documentation.
+The table relationship dataset used by the Table Path Finder is included as `static/data/fk-map.json`. It is generated from the public Alex Meyer (ameyer505) DynamicsTableAssociations dataset (`tablefieldassociations.json`, 39,380 entries), which derives from HTML ERD files originally published by Microsoft. The shipped map is a mechanical, lossless restructure of that public source:
 
-Verification details: of the original 39,380 relations, 32,313 were confirmed consistent with the Alex Meyer (ameyer505) dataset, and 5,299 previously unusable composite/ambiguous specs (`Pky?`/`Fky?` parser artifacts) were resolved against real metadata and are included with their real field pairs. 1,768 could not be confirmed (tables outside the synced model set that are undocumented on Microsoft Learn, plus relations contradicted by the real metadata). Those are excluded from this file and preserved, with per-entry reasons, in a private companion verification project. After deduping 169 duplicate triples created by the resolution pass (37,612 verified minus 169 = 37,443), the shipped file holds 37,443 relations: 32,293 confirmed + 5,150 metadata-resolved.
+- Every single-field relation is emitted as-is (32,313 relations).
+- Composite/multi-field specs (e.g. `"dataAreaId, TaxGroup"`, 7,042 relations) are expanded into one edge per constituent field pair (11,920 expansion edges): each pair is itself a valid join. Marker-only specs (`Pky?`/`Fky?`, 25 relations) carry no usable field pair and are dropped; 475 duplicate triples are deduped. Every drop and expansion is counted in `static/data/map-manifest.json`.
+- The resulting map holds 5,588 tables and 44,202 directed edges. The parent-keyed schema is unchanged: `{parentTable: [[childTable, parentField, childField], ...]}`.
+
+Dataset provenance & regeneration
+---------------------------------
+`tools/generate-map.mjs` rebuilds `static/data/fk-map.json` + `static/data/map-manifest.json` from the public dataset, deterministically (same input -> byte-identical outputs, in any environment). The manifest records the source dataset commit SHA + content hash, the generator version, generation timestamp (dataset commit date), transform counts, and a git-tagged fingerprint that `npm run verify:map` rechecks against the committed files.
+
+```sh
+npm run generate:map   # regenerate static/data/fk-map.json + map-manifest.json
+npm run verify:map     # read-back verification: fingerprint + counts + dataset version
+```
+
+Set `FNO_DATASET_DIR` to point at a checkout of https://github.com/ameyer505/MicrosoftDynamicsTableAssociations when it is not at the default location. The dataset is the ONLY data source: no other metadata (including licensed D365FO standard-source material) feeds this repo. Known gaps (e.g. tables absent from the public dataset) are closed by patching the public dataset in its own repository, never by adding local metadata here.
 
 Primary sources:
 
 - Microsoft: ax-2012-doc-tools - source table data (HTML ERD files in the Module-Erd directory). https://github.com/Microsoft/ax-2012-doc-tools
 - Alex Meyer: MicrosoftDynamicsTableAssociations - published table relationship data (tables.json, tablefieldassociations.json) derived from Microsoft's ERD information. His conversion approach and tooling served as inspiration. https://github.com/ameyer505/MicrosoftDynamicsTableAssociations
-- Microsoft Learn (https://learn.microsoft.com/api/mcp) - field/relation confirmation for tables outside the synced model set.
-- D365FO standard-source mirror (local, 10.0.2645.32) - AxTable relation metadata used for verification and resolution.
 
 Both upstream projects are licensed under the MIT License. The data in `static/data/fk-map.json` is included in this repository under the MIT License with attribution to the upstream sources above. When redistributing or adapting the dataset, keep this attribution and the original license notices.

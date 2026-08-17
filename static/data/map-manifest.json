@@ -1,0 +1,38 @@
+{
+  "schema": "fno-interactor/fk-map-manifest/v1",
+  "generator": {
+    "script": "tools/generate-map.mjs",
+    "version": "1.0.0"
+  },
+  "generatedAt": "2022-01-04T10:11:28-06:00",
+  "sourceDataset": {
+    "name": "MicrosoftDynamicsTableAssociations",
+    "path": "/home/smolpanda/Fun/Projects/MicrosoftDynamicsTableAssociations",
+    "gitCommitSha": "433cc8dadb65b3efbc1ca5822bf334139307cc40",
+    "gitCommitDate": "2022-01-04T10:11:28-06:00",
+    "fileSha256": "e5f47034c4f9c668ac610af0c27a9fc7dbe68d901db88412199ccf285ab7f2b1",
+    "entryCount": 39380,
+    "fileSize": 7591086
+  },
+  "counts": {
+    "entriesTotal": 39380,
+    "cleanRelations": 32282,
+    "compositeRelations": 7042,
+    "expansionEdges": 11920,
+    "dropped": {
+      "markerOnlySpecs": 25,
+      "unequalFieldLists": 0,
+      "unparseableFields": 0,
+      "duplicateEdges": 475
+    },
+    "droppedTotal": 25,
+    "edges": 44202,
+    "tables": 5588,
+    "childTables": 5600,
+    "totalReferencedTables": 5633,
+    "selfEdges": 714,
+    "orphanTables": 0,
+    "connectedComponents": 48
+  },
+  "fingerprint": "431c8ba78d05301024a8d0a77b167e00636d659969c7497c046bbf3a770be7b4"
+}

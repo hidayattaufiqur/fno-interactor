@@ -7,7 +7,9 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "prepare": "svelte-kit sync"
+    "prepare": "svelte-kit sync",
+    "generate:map": "node tools/generate-map.mjs",
+    "verify:map": "node tools/generate-map.mjs --verify"
   },
   "devDependencies": {
     "@playwright/cli": "^0.1.8",
