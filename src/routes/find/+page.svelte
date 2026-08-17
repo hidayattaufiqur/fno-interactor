@@ -1402,10 +1402,17 @@
   /* ── Legend ("What do these mean?") ── */
   .legend {
     margin-top: 18px;
-    /* Spans the content column on desktop so the reason-code table keeps
-       enough width to stay compact (the middle grid track below is wider).
-       On tablets and mobile the grid collapses via the media queries. */
-    max-width: 1076px;
+    /* Fills the content column on desktop so the finder + legend use the
+       horizontal space on wide viewports. The old hard 1076px cap bound as
+       soon as the content column (viewport − 280px nav − 84px gutters)
+       exceeded 1076px, i.e. viewport > 1440px, leaving a dead strip on the
+       right at 100% zoom and below. Width 100% + a 1760px ceiling keeps
+       ultra-wide screens from getting edge-to-edge text. The middle grid
+       track (2.4fr) absorbs the extra width and the reason-code table is
+       table-layout: fixed, so wide tracks stay usable. The cap never binds
+       below 1440px, so tablet and mobile layouts are untouched. */
+    width: 100%;
+    max-width: 1760px;
     font-size: 12px;
   }
 
