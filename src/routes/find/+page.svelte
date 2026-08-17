@@ -1402,7 +1402,10 @@
   /* ── Legend ("What do these mean?") ── */
   .legend {
     margin-top: 18px;
-    max-width: 720px;
+    /* Spans the content column on desktop so the reason-code table keeps
+       enough width to stay compact (the middle grid track below is wider).
+       On tablets and mobile the grid collapses via the media queries. */
+    max-width: 1076px;
     font-size: 12px;
   }
 
@@ -1441,9 +1444,13 @@
 
   .legend-body {
     margin-top: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    display: grid;
+    /* 3-up on desktop: the middle group (Path quality) carries the 11-row
+       reason-code table, so it gets a wider track to keep the table compact.
+       The grid is collapsed to 1 column on mobile (media query below) and to
+       a 2-column + full-width-table row on tablets. */
+    grid-template-columns: 1fr 2.4fr 1fr;
+    gap: 16px 24px;
     background: var(--clr-surface);
     border: 1px solid var(--clr-border-subtle);
     border-radius: 10px;
@@ -1499,6 +1506,12 @@
     margin-top: 2px;
     font-size: 11px;
     line-height: 1.45;
+    /* In 3-up mode each group column is ~290px, too narrow for the table's
+       natural min-content (nowrap code cells + long phrases). Fixed layout
+       with wrapping keeps every row visible; the hyphenated reason-code
+       slugs wrap cleanly at their hyphens. */
+    table-layout: fixed;
+    width: 100%;
   }
 
   .legend-table th {
@@ -1517,9 +1530,44 @@
     border-bottom: 1px solid var(--clr-border-subtle);
     vertical-align: top;
     color: var(--clr-text-muted);
+    overflow-wrap: break-word;
   }
 
   .legend-table td:first-child {
-    white-space: nowrap;
+    /* Reason-code slugs are hyphenated: they wrap at hyphens in the narrow
+       3-up columns because we removed white-space: nowrap here. */
+    color: var(--clr-blue-strong);
+  }
+
+  /* Responsive ladder for the legend grid:
+       - ≥1200px viewport: 3-up (Path ranking | Path quality | Notes)
+       - 701–1199px (tablets): 2 columns on row 1, Path quality spans the
+         full width on row 2 so the reason-code table stays wide and short
+       - ≤700px (mobile): single-column stack, as before */
+  @media (max-width: 1199px) and (min-width: 701px) {
+    .legend-body {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .legend-group:nth-child(1) {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .legend-group:nth-child(2) {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+
+    .legend-group:nth-child(3) {
+      grid-column: 2;
+      grid-row: 1;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .legend-body {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

@@ -159,6 +159,86 @@ await page.goto(`${BASE}/find`, { waitUntil: 'domcontentloaded' })
   await page.waitForFunction(() => !document.querySelector('details.legend')?.open)
 }
 
+// ── Layout: 3-up on desktop, single-column stack on mobile ─────────────────
+
+section('legend layout: 3-up desktop / stacked mobile')
+
+// Opens the legend on a fresh page and returns bounding boxes of the three
+// group cards in DOM order.
+async function legendGroupBoxes(layoutPage) {
+  await layoutPage.goto(`${BASE}/find`, { waitUntil: 'domcontentloaded' })
+  await layoutPage.locator('.legend-summary').click()
+  await layoutPage.waitForSelector('details.legend[open]', { timeout: 2500 })
+  const boxes = []
+  for (let i = 0; i < 3; i += 1) {
+    const box = await layoutPage.locator('.legend-group').nth(i).boundingBox()
+    if (!box) throw new Error(`legend group ${i} has no box`)
+    boxes.push(box)
+  }
+  return boxes
+}
+
+const dropFaviconErrors = (list) => list.filter((e) => !e.includes('favicon'))
+
+{
+  // Desktop: 1440px viewport → three groups side by side in one row.
+  const page2 = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+  const errs2 = []
+  page2.on('console', (m) => { if (m.type() === 'error') errs2.push(m.text()) })
+  page2.on('pageerror', (e) => errs2.push(`PAGEERROR: ${e.message}`))
+
+  const boxes = await legendGroupBoxes(page2)
+  const distinctX = new Set(boxes.map((b) => Math.round(b.x))).size
+  if (distinctX !== 3) fail('desktop 3-up: three distinct column positions', `distinct x=${distinctX}`)
+  else pass('desktop 3-up: three distinct column positions')
+
+  const topRange = Math.max(...boxes.map((b) => b.y)) - Math.min(...boxes.map((b) => b.y))
+  if (topRange > 4) fail('desktop 3-up: groups share one row', `y range ${topRange}px`)
+  else pass('desktop 3-up: groups share one row')
+
+  const sizes = boxes.map((b) => [Math.round(b.width), Math.round(b.height)])
+  if (sizes.some(([w, h]) => w < 200 || h < 20)) fail('desktop 3-up: all groups visible with content', JSON.stringify(sizes))
+  else pass('desktop 3-up: all groups visible with content')
+
+  if (dropFaviconErrors(errs2).length) fail('desktop layout no page errors', errs2.join(' | '))
+  else pass('desktop layout no page errors')
+
+  // Toggle still works on the desktop layout page.
+  await page2.locator('.legend-summary').click()
+  await page2.waitForFunction(() => !document.querySelector('details.legend')?.open)
+  await page2.locator('.legend-summary').click()
+  await page2.waitForSelector('details.legend[open]', { timeout: 2500 })
+  pass('desktop layout toggle open/close/open')
+
+  await page2.close()
+}
+
+{
+  // Mobile: 390px viewport → single column, groups stacked vertically.
+  const page3 = await browser.newPage({ viewport: { width: 390, height: 844 } })
+  const errs3 = []
+  page3.on('console', (m) => { if (m.type() === 'error') errs3.push(m.text()) })
+  page3.on('pageerror', (e) => errs3.push(`PAGEERROR: ${e.message}`))
+
+  const boxes = await legendGroupBoxes(page3)
+  const distinctX = new Set(boxes.map((b) => Math.round(b.x))).size
+  if (distinctX !== 1) fail('mobile stacked: single column (same x)', `distinct x=${distinctX}`)
+  else pass('mobile stacked: single column (same x)')
+
+  const ys = boxes.map((b) => Math.round(b.y))
+  if (!(ys[0] < ys[1] && ys[1] < ys[2])) fail('mobile stacked: groups stack vertically', JSON.stringify(ys))
+  else pass('mobile stacked: groups stack vertically')
+
+  const sizes = boxes.map((b) => [Math.round(b.width), Math.round(b.height)])
+  if (sizes.some(([, h]) => h < 20)) fail('mobile stacked: all groups visible', JSON.stringify(sizes))
+  else pass('mobile stacked: all groups visible')
+
+  if (dropFaviconErrors(errs3).length) fail('mobile layout no page errors', errs3.join(' | '))
+  else pass('mobile layout no page errors')
+
+  await page3.close()
+}
+
 // ── Search 1: InventTable → CustTable, 4 hops, unique ───────────────────────
 
 section('search 1: InventTable → CustTable (4 hops, unique)')
