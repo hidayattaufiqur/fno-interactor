@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte'
   import RelationGraph from '$lib/components/RelationGraph.svelte'
+  import Pager from '$lib/components/Pager.svelte'
   import { canonicalModule } from '$lib/utils'
   import { flows, tableDefs } from '$lib/data/flows'
   import { fkLoadState, loadFkMap, getSchemaEdgesForTable } from '$lib/stores/fkMap'
@@ -54,6 +55,102 @@
   })
 
   const categoryKeys = ['all', ...Object.keys(METHOD_CATEGORIES)]
+
+  // ── Lean sort + pagination helpers (dependency-free) ───────────────────────
+  // sortedBy: stable sort of a copy by an accessor; accessor returns a string|number.
+  function sortedBy(arr, accessor, dir) {
+    if (!accessor) return arr
+    const c = dir === 'desc' ? -1 : 1
+    return [...arr].sort((a, b) => {
+      const av = String(accessor(a) ?? '').toLowerCase()
+      const bv = String(accessor(b) ?? '').toLowerCase()
+      if (av < bv) return -1 * c
+      if (av > bv) return 1 * c
+      return 0
+    })
+  }
+  function slicePage(arr, page, pageSize) {
+    const start = (page - 1) * pageSize
+    return arr.slice(start, start + pageSize)
+  }
+
+  // ── Field table sort + pagination ─────────────────────────────────────────◦
+  const FIELD_PAGE_SIZE = 20
+  let fieldSort = { key: 'name', dir: 'asc' }
+  let fieldPage = 1
+  const fieldAccessors = {
+    name: (f) => f.name ?? '',
+    type: (f) => f.type ?? '',
+    fk: (f) => f.fkTarget ?? '',
+    note: (f) => f.note ?? '',
+  }
+  $: allFields = data.def?.fields ?? []
+  $: sortedFields = sortedBy(allFields, fieldAccessors[fieldSort.key], fieldSort.dir)
+  $: shownFields = slicePage(sortedFields, fieldPage, FIELD_PAGE_SIZE)
+  function setFieldSort(key) {
+    if (fieldSort.key === key) {
+      fieldSort = { key, dir: fieldSort.dir === 'asc' ? 'desc' : 'asc' }
+    } else {
+      fieldSort = { key, dir: 'asc' }
+    }
+    fieldPage = 1
+  }
+
+  // ── Methods sort + pagination ──────────────────────────────────────────────
+  const METHOD_PAGE_SIZE = 20
+  let methodSort = { key: 'name', dir: 'asc' }
+  let methodPage = 1
+  const methodAccessors = {
+    name: (m) => m.name ?? '',
+    category: (m) => METHOD_CATEGORIES[m.category].label ?? '',
+    signature: (m) => m.signature ?? '',
+    description: (m) => m.description ?? '',
+  }
+  $: sortedMethods = sortedBy(filteredMethods, methodAccessors[methodSort.key], methodSort.dir)
+  $: shownMethods = slicePage(sortedMethods, methodPage, METHOD_PAGE_SIZE)
+  function setMethodSort(key) {
+    if (methodSort.key === key) {
+      methodSort = { key, dir: methodSort.dir === 'asc' ? 'desc' : 'asc' }
+    } else {
+      methodSort = { key, dir: 'asc' }
+    }
+    methodPage = 1
+  }
+
+  // ── Relations sort + pagination (applies to every direction group) ────────
+  const REL_PAGE_SIZE = 50
+  let relSortKey = 'from'
+  let relSortDir = 'asc'
+  const relAccessors = {
+    from: (r) => r.from ?? '',
+    to: (r) => r.to ?? '',
+    fields: (r) => (r.fields ?? []).join(' ') ?? '',
+    stage: (r) => r.stageTitle ?? '',
+    note: (r) => r.note ?? '',
+  }
+  function sortRels(rows, key, dir) { return sortedBy(rows, relAccessors[key], dir) }
+  function setRelSort(key) {
+    if (relSortKey === key) {
+      relSortDir = relSortDir === 'asc' ? 'desc' : 'asc'
+    } else {
+      relSortKey = key
+      relSortDir = 'asc'
+    }
+  }
+
+  // Per direction-group page state + derived sorted/paged lists.
+  let outgoingPage = 1
+  let incomingPage = 1
+  let schemaOutgoingPage = 1
+  let schemaIncomingPage = 1
+  $: sortedOutgoing = sortRels(outgoing, relSortKey, relSortDir)
+  $: sortedIncoming = sortRels(incoming, relSortKey, relSortDir)
+  $: sortedSchemaOutgoing = sortRels(schemaOutgoing, relSortKey, relSortDir)
+  $: sortedSchemaIncoming = sortRels(schemaIncoming, relSortKey, relSortDir)
+  $: shownOutgoing = slicePage(sortedOutgoing, outgoingPage, REL_PAGE_SIZE)
+  $: shownIncoming = slicePage(sortedIncoming, incomingPage, REL_PAGE_SIZE)
+  $: shownSchemaOutgoing = slicePage(sortedSchemaOutgoing, schemaOutgoingPage, REL_PAGE_SIZE)
+  $: shownSchemaIncoming = slicePage(sortedSchemaIncoming, schemaIncomingPage, REL_PAGE_SIZE)
 </script>
 
 <svelte:head>
@@ -91,19 +188,19 @@
 
 {#if data.def?.fields?.length}
   <section class="detail-section">
-    <div class="section-heading">Key fields ({data.def.fields.length})</div>
+    <div class="section-heading">Key fields ({allFields.length})</div>
     <div class="field-table-wrap">
-      <table class="field-table">
+      <table class="field-table sortable-table">
         <thead>
           <tr>
-            <th>Field</th>
-            <th>Type</th>
-            <th>FK / Reference</th>
-            <th>Description</th>
+            <th><button class="th-sort" class:active={fieldSort.key === 'name'} on:click={() => setFieldSort('name')}>Field{fieldSort.key === 'name' ? (fieldSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>
+            <th><button class="th-sort" class:active={fieldSort.key === 'type'} on:click={() => setFieldSort('type')}>Type{fieldSort.key === 'type' ? (fieldSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>
+            <th><button class="th-sort" class:active={fieldSort.key === 'fk'} on:click={() => setFieldSort('fk')}>FK / Reference{fieldSort.key === 'fk' ? (fieldSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>
+            <th><button class="th-sort" class:active={fieldSort.key === 'note'} on:click={() => setFieldSort('note')}>Description{fieldSort.key === 'note' ? (fieldSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>
           </tr>
         </thead>
         <tbody>
-          {#each data.def.fields as field}
+          {#each shownFields as field}
             <tr>
               <td class="field-name">{field.name}</td>
               <td class="field-type">{field.type}</td>
@@ -120,6 +217,13 @@
         </tbody>
       </table>
     </div>
+    <Pager
+      page={fieldPage}
+      pageSize={FIELD_PAGE_SIZE}
+      total={sortedFields.length}
+      onPrev={() => (fieldPage -= 1)}
+      onNext={() => (fieldPage += 1)}
+    />
   </section>
 {:else}
   <div class="card no-def-notice">
@@ -175,17 +279,17 @@
     <p class="mini" style="opacity:0.4;margin-top:12px">No methods match your filters.</p>
   {:else}
     <div class="field-table-wrap">
-      <table class="field-table methods-table">
+      <table class="field-table methods-table sortable-table">
         <thead>
           <tr>
-            <th>Method</th>
-            <th>Category</th>
-            <th>Signature</th>
-            <th>Description</th>
+            <th><button class="th-sort" class:active={methodSort.key === 'name'} on:click={() => setMethodSort('name')}>Method{methodSort.key === 'name' ? (methodSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>
+            <th><button class="th-sort" class:active={methodSort.key === 'category'} on:click={() => setMethodSort('category')}>Category{methodSort.key === 'category' ? (methodSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>
+            <th><button class="th-sort" class:active={methodSort.key === 'signature'} on:click={() => setMethodSort('signature')}>Signature{methodSort.key === 'signature' ? (methodSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>
+            <th><button class="th-sort" class:active={methodSort.key === 'description'} on:click={() => setMethodSort('description')}>Description{methodSort.key === 'description' ? (methodSort.dir === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>
           </tr>
         </thead>
         <tbody>
-          {#each filteredMethods as method (method.name)}
+          {#each shownMethods as method (method.name)}
             <tr>
               <td class="field-name method-name-cell">
                 {method.name}
@@ -205,6 +309,13 @@
         </tbody>
       </table>
     </div>
+    <Pager
+      page={methodPage}
+      pageSize={METHOD_PAGE_SIZE}
+      total={sortedMethods.length}
+      onPrev={() => (methodPage -= 1)}
+      onNext={() => (methodPage += 1)}
+    />
   {/if}
 </section>
 
@@ -224,11 +335,19 @@
       Table relations — documented ({data.relationsUsing.length})
     </div>
 
+    <div class="rel-sort-bar" role="group" aria-label="Sort relations">
+      <span class="rel-sort-label">Sort</span>
+      <button class="rel-sort-btn" class:active={relSortKey === 'from'} on:click={() => setRelSort('from')}>From{relSortKey === 'from' ? (relSortDir === 'asc' ? ' ↑' : ' ↓') : ''}</button>
+      <button class="rel-sort-btn" class:active={relSortKey === 'to'} on:click={() => setRelSort('to')}>To{relSortKey === 'to' ? (relSortDir === 'asc' ? ' ↑' : ' ↓') : ''}</button>
+      <button class="rel-sort-btn" class:active={relSortKey === 'fields'} on:click={() => setRelSort('fields')}>FK field{relSortKey === 'fields' ? (relSortDir === 'asc' ? ' ↑' : ' ↓') : ''}</button>
+      <button class="rel-sort-btn" class:active={relSortKey === 'stage'} on:click={() => setRelSort('stage')}>Stage{relSortKey === 'stage' ? (relSortDir === 'asc' ? ' ↑' : ' ↓') : ''}</button>
+    </div>
+
     {#if outgoing.length > 0}
       <div class="rel-direction-section">
-        <p class="rel-direction-label">Outgoing — {data.name} references these tables</p>
+        <p class="rel-direction-label">Outgoing — {data.name} references these tables ({outgoing.length})</p>
         <div class="inline-relations">
-          {#each outgoing as rel}
+          {#each shownOutgoing as rel}
             <div class="inline-rel">
               <a href="/tables/{rel.from}" class="rel-from self">{rel.from}</a>
               <span class="rel-arrow">→</span>
@@ -243,14 +362,21 @@
             </div>
           {/each}
         </div>
+        <Pager
+          page={outgoingPage}
+          pageSize={REL_PAGE_SIZE}
+          total={sortedOutgoing.length}
+          onPrev={() => (outgoingPage -= 1)}
+          onNext={() => (outgoingPage += 1)}
+        />
       </div>
     {/if}
 
     {#if incoming.length > 0}
       <div class="rel-direction-section">
-        <p class="rel-direction-label">Incoming — tables that reference {data.name}</p>
+        <p class="rel-direction-label">Incoming — tables that reference {data.name} ({incoming.length})</p>
         <div class="inline-relations">
-          {#each incoming as rel}
+          {#each shownIncoming as rel}
             <div class="inline-rel">
               <a href="/tables/{rel.from}" class="rel-from">{rel.from}</a>
               <span class="rel-arrow">→</span>
@@ -265,6 +391,13 @@
             </div>
           {/each}
         </div>
+        <Pager
+          page={incomingPage}
+          pageSize={REL_PAGE_SIZE}
+          total={sortedIncoming.length}
+          onPrev={() => (incomingPage -= 1)}
+          onNext={() => (incomingPage += 1)}
+        />
       </div>
     {/if}
   </section>
@@ -284,9 +417,9 @@
 
     {#if schemaOutgoing.length > 0}
       <div class="rel-direction-section">
-        <p class="rel-direction-label">Outgoing — {data.name} has FK fields pointing to</p>
+        <p class="rel-direction-label">Outgoing — {data.name} has FK fields pointing to ({schemaOutgoing.length})</p>
         <div class="inline-relations">
-          {#each schemaOutgoing as rel}
+          {#each shownSchemaOutgoing as rel}
             <div class="inline-rel schema-rel">
               <a href="/tables/{rel.from}" class="rel-from self">{rel.from}</a>
               <span class="rel-arrow">→</span>
@@ -297,14 +430,21 @@
             </div>
           {/each}
         </div>
+        <Pager
+          page={schemaOutgoingPage}
+          pageSize={REL_PAGE_SIZE}
+          total={sortedSchemaOutgoing.length}
+          onPrev={() => (schemaOutgoingPage -= 1)}
+          onNext={() => (schemaOutgoingPage += 1)}
+        />
       </div>
     {/if}
 
     {#if schemaIncoming.length > 0}
       <div class="rel-direction-section">
-        <p class="rel-direction-label">Incoming — tables with FK fields pointing to {data.name}</p>
+        <p class="rel-direction-label">Incoming — tables with FK fields pointing to {data.name} ({schemaIncoming.length})</p>
         <div class="inline-relations">
-          {#each schemaIncoming as rel}
+          {#each shownSchemaIncoming as rel}
             <div class="inline-rel schema-rel">
               <a href="/tables/{rel.from}" class="rel-from">{rel.from}</a>
               <span class="rel-arrow">→</span>
@@ -315,6 +455,13 @@
             </div>
           {/each}
         </div>
+        <Pager
+          page={schemaIncomingPage}
+          pageSize={REL_PAGE_SIZE}
+          total={sortedSchemaIncoming.length}
+          onPrev={() => (schemaIncomingPage -= 1)}
+          onNext={() => (schemaIncomingPage += 1)}
+        />
       </div>
     {/if}
   </section>
@@ -503,4 +650,60 @@
   .cat-badge.cat-dataAccess { background: rgba(0,188,212,0.12);  border: 1px solid rgba(0,188,212,0.3);  color: #4dd0e1; }
   .cat-badge.cat-utility    { background: rgba(96,125,139,0.15); border: 1px solid rgba(96,125,139,0.35);color: #90a4ae; }
   .cat-badge.cat-static     { background: rgba(233,30,99,0.12);  border: 1px solid rgba(233,30,99,0.3);  color: #f48fb1; }
+
+  /* ── Sortable column headers ─────────────────────────────────────────────── */
+  .sortable-table th { padding: 0; vertical-align: middle; }
+
+  .th-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--clr-text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: left;
+    transition: color 0.15s;
+  }
+  .th-sort:hover { color: var(--clr-text); }
+  .th-sort.active { color: var(--clr-blue); }
+
+  /* ── Relation sort toolbar ───────────────────────────────────────────────── */
+  .rel-sort-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .rel-sort-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--clr-text-faint);
+    margin-right: 4px;
+  }
+  .rel-sort-btn {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--clr-border);
+    background: transparent;
+    color: var(--clr-text-muted);
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .rel-sort-btn:hover { background: rgba(255,255,255,0.07); color: var(--clr-text); }
+  .rel-sort-btn.active { background: rgba(79,195,247,0.15); border-color: rgba(79,195,247,0.4); color: #4fc3f7; }
+
+  html.light .rel-sort-btn:hover { background: rgba(0,0,0,0.05); }
 </style>
