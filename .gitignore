@@ -57,6 +57,7 @@ tests/.evidence/
 # Local-only tooling / private assistant metadata
 .claude/
 .github/copilot-instructions.md
+REVIEWING.md
 
 # Ignore build artifacts created by SvelteKit / adapter
 /.svelte-kit/
