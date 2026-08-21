@@ -341,12 +341,17 @@ function verify(outDir) {
   log(fp === manifest.fingerprint, `fingerprint recompute == manifest (${manifest.fingerprint.slice(0, 12)}...)`)
 
   // 3. Dataset still at recorded version (when reachable).
+  //    This is a LOCAL provenance guard: the committed manifest records the
+  //    dataset's absolute path on the authoring machine. On a fresh checkout
+  //    or CI runner that dataset is not cloned, so the content-hash can't be
+  //    rechecked there. Absence is a soft SKIP (machine-independent invariants
+  //    above already passed); a present-but-mismatched dataset is a hard FAIL.
   if (existsSync(join(manifest.sourceDataset.path, 'tablefieldassociations.json'))) {
     const raw = readFileSync(join(manifest.sourceDataset.path, 'tablefieldassociations.json'), 'utf8')
     const now = sha256(raw)
     log(now === manifest.sourceDataset.fileSha256, `dataset content sha matches manifest (${now.slice(0, 12)}...)`)
   } else {
-    log(false, `dataset dir gone: ${manifest.sourceDataset.path}`)
+    console.log(`skip dataset content sha (local dataset not present: ${manifest.sourceDataset.path})`)
   }
 
   if (problems.length) {

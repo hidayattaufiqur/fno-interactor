@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (SvelteKit static)
+        run: npm run build
+
+      - name: Verify dataset fingerprint (map-manifest vs fk-map.json)
+        run: npm run verify:map
+
+      - name: Copy-drift check (findLegendCopy.js vs dossier)
+        run: node tests/check-legend-copy.mjs
+
+      - name: Fixture existence validation
+        run: node tests/validate-fixtures.mjs
+
+      - name: Fixture regression assertions (top-10 surfacing + existence)
+        run: node tests/assert-fixtures.mjs
+
+      - name: Golden test (JS equals Python reference)
+        run: node tests/golden-test.mjs
+
+      - name: Performance budget (unique-mode p95 <= 300ms)
+        run: node tests/bench.mjs
