@@ -1,13 +1,3 @@
-# CI gate for fno-interactor.
-#
-# The fast, deterministic, machine-checkable gate. Runs on every PR and every
-# push to main. Deliberately stays Node-only (no browser): Playwright browser
-# probes are DEBUG-ONLY tooling for on-demand verification and never run in
-# this daily gate.
-#
-# Order matters: build and verify:map must pass before the logic tests, because
-# every logic test reads static/data/fk-map.json + map-manifest.json (both
-# committed) and the build proves the SvelteKit app actually compiles.
 name: ci
 
 on:
